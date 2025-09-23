@@ -1,6 +1,10 @@
 #include "raylib.hpp"
 #include "Vector2.hpp"
+#include "Vector3.hpp"
+#include "Color.hpp"
 #include "Window.hpp"
+#include "Mesh.hpp"
+#include "Model.hpp"
 
 #include <vector>
 #include <array>
@@ -11,7 +15,7 @@
 void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camera3D& cam, Color col) {
   // Direzione di vista proiettata sul piano XZ
   Vector3 v = { cam.position.x - center.x, 0.0f, cam.position.z - center.z };
-  float len = sqrtf(v.x * v.x + v.z * v.z);
+  float len = std::sqrt(v.x * v.x + v.z * v.z);
   if (len < 1e-5f) {
     // camera sopra il cilindro: fallback a due direzioni fisse
     v = { 1.0f, 0.0f, 0.0f };
@@ -21,7 +25,7 @@ void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camer
     v.x /= len; v.z /= len;
   }
 
-  // Versore tangente (perpendicolare in XZ): ruota v di +90° nel piano XZ
+  // Versore tangente (perpendicolare in XZ): ruota v di +90ï¿½ nel piano XZ
   Vector3 t = { -v.z, 0.0f, v.x };
 
   // Punti alle basi delle due generatrici
@@ -50,7 +54,7 @@ out vec3 vNormalWorld;
 
 void main() {
     vNormalWorld = normalize((matModel * vec4(vertexNormal, 0.0)).xyz);
-    gl_Position = mvp * matModel * vec4(vertexPosition, 1.0);
+    gl_Position = mvp * vec4(vertexPosition, 1.0);
 }
 )";
 
@@ -84,16 +88,16 @@ void main()
 
 struct PieceColor
 {
-  std::array<Color, 4> colors;
+  std::array<raylib::Color, 4> colors;
 
   const Color& top() const { return colors[0]; }
   const Color& left() const { return colors[1]; }
   const Color& right() const { return colors[2]; }
   const Color& edge() const { return colors[3]; }
 
-  Vector3 topV() const { return Vector3(top().r / 255.0f, top().g / 255.0f, top().b / 255.0f); }
-  Vector3 leftV() const { return Vector3(left().r / 255.0f, left().g / 255.0f, left().b / 255.0f); }
-  Vector3 rightV() const { return Vector3(right().r / 255.0f, right().g / 255.0f, right().b / 255.0f); }
+  Vector3 topV() const { return Vector3{top().r / 255.0f, top().g / 255.0f, top().b / 255.0f}; }
+  Vector3 leftV() const { return Vector3{left().r / 255.0f, left().g / 255.0f, left().b / 255.0f}; }
+  Vector3 rightV() const { return Vector3{right().r / 255.0f, right().g / 255.0f, right().b / 255.0f}; }
 };
 
 PieceColor lime = {
@@ -139,11 +143,12 @@ static inline void DrawCubeEdgesFast(Vector3 centerLocal, float w, float h, floa
     Vector3 a = Vector3Transform(v[e[i][0]], world);
     Vector3 b = Vector3Transform(v[e[i][1]], world);
     DrawLine3D(a, b, col);
+    DrawCylinderEx(a, b, 0.02f, 0.02f, 8, col);
   }
 }
 
 // Disegna wireframe cilindro verticale (asse Y)
-void DrawCylinderWireframe(Vector3 center, float radius, float height, int segments, Color col, const Camera3D& cam)
+void DrawCylinderWireframe(Vector3 center, float radius, float height, int segments, Color col, const Matrix& world, const Camera3D& cam)
 {
   float y0 = center.y;
   float y1 = center.y + height;
@@ -157,8 +162,8 @@ void DrawCylinderWireframe(Vector3 center, float radius, float height, int segme
     Vector3 q0 = { center.x + radius * cosf(a0), y1, center.z + radius * sinf(a0) };
     Vector3 q1 = { center.x + radius * cosf(a1), y1, center.z + radius * sinf(a1) };
 
-    DrawLine3D(p0, p1, col); // bottom circle
-    DrawLine3D(q0, q1, col); // top circle
+    DrawCylinderEx(p0, p1, 0.02f, 0.02f, 8, col); // bottom circle
+    DrawCylinderEx(q0, q1, 0.02f, 0.02f, 8, col); // top circle
   }
 
   // --- due generatrici silhouette (a destra/sinistra rispetto alla camera) ---
@@ -176,14 +181,43 @@ void DrawCylinderWireframe(Vector3 center, float radius, float height, int segme
   Vector3 b0 = { center.x - radius * t.x, y0, center.z - radius * t.y };
   Vector3 b1 = { center.x - radius * t.x, y1, center.z - radius * t.y };
 
-  DrawLine3D(a0, a1, col);
-  DrawLine3D(b0, b1, col);
+  DrawCylinderEx(a0, a1, 0.02f, 0.02f, 8, col);
+  DrawCylinderEx(b0, b1, 0.02f, 0.02f, 8, col);
 }
 
 constexpr float side = 3.8f;   // lato
 constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
 constexpr float studDiameter = 2.5f;
+
+struct Repository
+{
+  struct Constants
+  {
+    static constexpr float side = 3.8f; 
+    static constexpr float height = 3.1f;
+    static constexpr float studHeight = 1.4f;
+    static constexpr float studDiameter = 2.5f;
+  };
+  
+  struct Models
+  {
+    raylib::Model cube;
+    raylib::Model stud;
+  } models;
+
+  void init();
+};
+
+void Repository::init()
+{
+  raylib::Mesh cube = GenMeshCube(side, height, side);
+  models.cube.Load(cube);
+
+  raylib::Mesh stud = GenMeshCylinder(studDiameter / 2.0f, studHeight, 32);
+  models.stud.Load(stud);
+}
+
 
 int main(int arg, char* argv[])
 {
@@ -193,21 +227,16 @@ int main(int arg, char* argv[])
 
   // Camera orbitale
   Camera3D cam = { 0 };
-  cam.position = { 10.0f, 1.0f, 10.0f };
+  cam.position = { 10.0f, 10.0f, 10.0f };
   cam.target = { 0.0f,  0.0f,  0.0f };
   cam.up = { 0.0f,  1.0f,  0.0f };
   cam.fovy = 45.0f;
   cam.projection = CAMERA_PERSPECTIVE;
 
-  Mesh cube = GenMeshCube(side, height, side);
-  Model model = LoadModelFromMesh(cube);
-
-  Mesh stud = GenMeshCylinder(studDiameter / 2.0f, studHeight, 32);
-  Model studModel = LoadModelFromMesh(stud);
 
   // Carica shader
   Shader sh = LoadShaderFromMemory(vertShader, fragShader);
-  // Mappa i loc standard (raylib spesso lo fa già, ma esplicitiamo)
+  // Mappa i loc standard (raylib spesso lo fa giï¿½, ma esplicitiamo)
   sh.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(sh, "mvp");
   sh.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocation(sh, "matModel");
 
@@ -217,9 +246,9 @@ int main(int arg, char* argv[])
   int locRight = GetShaderLocation(sh, "colorRight");
   int locThr = GetShaderLocation(sh, "yThreshold");
 
-  // Toni “manuale istruzioni”
-  Vector3 upCol = { 0.95f, 0.92f, 0.85f }; // top più chiaro
-  Vector3 sideCol = { 0.85f, 0.80f, 0.74f }; // lati più scuri
+  // Toni ï¿½manuale istruzioniï¿½
+  Vector3 upCol = { 0.95f, 0.92f, 0.85f }; // top piÃ¹ chiaro
+  Vector3 sideCol = { 0.85f, 0.80f, 0.74f }; // lati piÃ¹ scuri
   float thr = 0.3f; // considera "up" se normale.y >= 0.3
 
   auto top = lime.topV();
@@ -239,36 +268,30 @@ int main(int arg, char* argv[])
   SetTargetFPS(60);
 
   while (!WindowShouldClose()) {
-    UpdateCamera(&cam, CAMERA_FREE);
+    UpdateCamera(&cam, CAMERA_ORBITAL);
 
     BeginDrawing();
-    ClearBackground({ 240,240,240,255 });
+    ClearBackground(RAYWHITE);
 
     BeginMode3D(cam);
     DrawGrid(20, 10.0f);
 
-    DrawPlane({ 0,0,0 }, { 20, 20 }, { 220,220,220,255 });  // grande piano piatto a Y=0
-
-
     // Disegna cubo al centro
-    Vector3 pos = { 0, 0, 0 };
+    Vector3 pos = { 0, height / 2, 0 };
     float   scale = 1.0f;
     Matrix  rot = MatrixIdentity();
 
     // Pass 1: riempimento
-    DrawModel(model, pos, scale, WHITE);
-
-    BoundingBox bb = GetMeshBoundingBox(cube);
-    printf("BB local: minY=%.2f maxY=%.2f (size=%.2f)\n", bb.min.y, bb.max.y, bb.max.y - bb.min.y);
+    DrawModelEx(model, pos, Vector3{0, 0, 0}, 0.0f, Vector3{1.0f, 1.0f, 1.0f}, WHITE);
 
     // Pass 2: wireframe bordi (sovrapposto)
     Matrix world = MakeDrawTransform(pos, scale, rot, model);
-    // centro locale del box è (0,0,0) per GenMeshCube
+    // centro locale del box ï¿½ (0,0,0) per GenMeshCube
     DrawCubeEdgesFast({ 0, 0, 0 }, side, height, side, world, lime.edge());
 
     {
-      DrawModel(studModel, { 0, height / 2, 0 }, 1.0f, WHITE);
-      DrawCylinderWireframe({ 0, height / 2 + studHeight, 0 }, studDiameter / 2.0f, studHeight, 32, lime.edge(), cam);
+      DrawModel(studModel, { 0, height, 0 }, 1.0f, WHITE);
+      DrawCylinderWireframe({ 0, 0, 0 }, studDiameter / 2.0f, studHeight, 32, lime.edge(), MatrixIdentity(), cam);
     }
 
 
@@ -309,8 +332,8 @@ int maizzn(int argc, char *argv[])
 
 
 
-  Color fillColor = Color(164, 219, 15, 255);
-  Color strokeColor = Color(147, 205, 14, 255);
+  Color fillColor = Color{164, 219, 15, 255};
+  Color strokeColor = Color{147, 205, 14, 255};
 
 
   while (!WindowShouldClose())
@@ -325,7 +348,7 @@ int maizzn(int argc, char *argv[])
 
     // Base cubo
     DrawCube(
-      { 0.0f, height / 2.0f, 0.0f }, // centro a metà altezza
+      { 0.0f, height / 2.0f, 0.0f }, // centro a metï¿½ altezza
       side, height, side,
       fillColor
     );

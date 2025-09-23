@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(procedurality)
+project(nanoforge)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
