@@ -1,0 +1,5 @@
+build/**
+projects/msvc/x64/**
+projects/msvc/.vs/**
+projects/msvc/nanoforge/**
+.DS_Store
