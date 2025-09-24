@@ -5,6 +5,7 @@
 #include "Window.hpp"
 #include "Mesh.hpp"
 #include "Model.hpp"
+#include "Shader.hpp"
 
 #include <vector>
 #include <array>
@@ -190,7 +191,7 @@ constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
 constexpr float studDiameter = 2.5f;
 
-struct Repository
+struct Data
 {
   struct Constants
   {
@@ -199,6 +200,11 @@ struct Repository
     static constexpr float studHeight = 1.4f;
     static constexpr float studDiameter = 2.5f;
   };
+
+  struct Shaders
+  {
+    raylib::Shader flatShading;
+  } shaders;
   
   struct Models
   {
@@ -209,15 +215,23 @@ struct Repository
   void init();
 };
 
-void Repository::init()
+void Data::init()
 {
   raylib::Mesh cube = GenMeshCube(side, height, side);
   models.cube.Load(cube);
 
   raylib::Mesh stud = GenMeshCylinder(studDiameter / 2.0f, studHeight, 32);
   models.stud.Load(stud);
+
+  shaders.flatShading = raylib::Shader::LoadFromMemory(vertShader, fragShader);
+  shaders.flatShading.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading.GetLocation("mvp");
+  shaders.flatShading.locs[SHADER_LOC_MATRIX_MODEL] = shaders.flatShading.GetLocation("matModel");
+
+  models.cube.materials[0].shader = shaders.flatShading;
+  models.stud.materials[0].shader = shaders.flatShading;
 }
 
+Data data;
 
 int main(int arg, char* argv[])
 {
@@ -233,37 +247,21 @@ int main(int arg, char* argv[])
   cam.fovy = 45.0f;
   cam.projection = CAMERA_PERSPECTIVE;
 
-
-  // Carica shader
-  Shader sh = LoadShaderFromMemory(vertShader, fragShader);
-  // Mappa i loc standard (raylib spesso lo fa gi�, ma esplicitiamo)
-  sh.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(sh, "mvp");
-  sh.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocation(sh, "matModel");
-
   // Uniform palette
-  int locUp = GetShaderLocation(sh, "colorUp");
-  int locLeft = GetShaderLocation(sh, "colorLeft");
-  int locRight = GetShaderLocation(sh, "colorRight");
-  int locThr = GetShaderLocation(sh, "yThreshold");
+  int locUp = data.shaders.flatShading.GetLocation("colorUp");
+  int locLeft = data.shaders.flatShading.GetLocation("colorLeft");
+  int locRight = data.shaders.flatShading.GetLocation("colorRight");
+  int locThr = data.shaders.flatShading.GetLocation("yThreshold");
 
-  // Toni �manuale istruzioni�
-  Vector3 upCol = { 0.95f, 0.92f, 0.85f }; // top più chiaro
-  Vector3 sideCol = { 0.85f, 0.80f, 0.74f }; // lati più scuri
-  float thr = 0.3f; // considera "up" se normale.y >= 0.3
+  float thr = 0.3f; 
 
   auto top = lime.topV();
   auto left = lime.leftV();
   auto right = lime.rightV();
-  SetShaderValue(sh, locUp, &top, SHADER_UNIFORM_VEC3);
-  SetShaderValue(sh, locLeft, &left, SHADER_UNIFORM_VEC3);
-  SetShaderValue(sh, locRight, &right, SHADER_UNIFORM_VEC3);
-  SetShaderValue(sh, locThr, &thr, SHADER_UNIFORM_FLOAT);
-
-  // Applica shader al materiale del modello
-  model.materials[0].shader = sh;
-  model.transform = MatrixIdentity();
-
-  studModel.materials[0].shader = sh;
+  data.shaders.flatShading.SetValue(locUp, &top, SHADER_UNIFORM_VEC3);
+  data.shaders.flatShading.SetValue(locLeft, &left, SHADER_UNIFORM_VEC3);
+  data.shaders.flatShading.SetValue(locRight, &right, SHADER_UNIFORM_VEC3);
+  data.shaders.flatShading.SetValue(locThr, &thr, SHADER_UNIFORM_FLOAT);
 
   SetTargetFPS(60);
 
@@ -281,8 +279,7 @@ int main(int arg, char* argv[])
     float   scale = 1.0f;
     Matrix  rot = MatrixIdentity();
 
-    // Pass 1: riempimento
-    DrawModelEx(model, pos, Vector3{0, 0, 0}, 0.0f, Vector3{1.0f, 1.0f, 1.0f}, WHITE);
+    data.models.cube.Draw(pos, raylib::Vector3(), 0.0f, raylib::Vector3(1.0f, 1.0f, 1.0f), WHITE);
 
     // Pass 2: wireframe bordi (sovrapposto)
     Matrix world = MakeDrawTransform(pos, scale, rot, model);
