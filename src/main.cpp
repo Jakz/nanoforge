@@ -1,17 +1,135 @@
 #include "raylib.hpp"
 #include "Vector2.hpp"
 #include "Vector3.hpp"
+#include "Matrix.hpp"
 #include "Color.hpp"
 #include "Window.hpp"
 #include "Mesh.hpp"
 #include "Model.hpp"
 #include "Shader.hpp"
 
+
 #include <vector>
 #include <array>
+#include <memory>
 
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
+
+namespace nb
+{
+  using layer_index_t = size_t;
+  using coord_t = int32_t;
+
+  class Model;
+
+  struct coord2d_t
+  {
+    coord_t x;
+    coord_t y;
+  };
+
+  enum class PieceOrientation
+  {
+    North = 0x01, East = 0x02, South = 0x04, West = 0x08
+  };
+
+  struct PieceColor
+  {
+    std::array<raylib::Color, 4> colors;
+
+    PieceColor(const std::array<raylib::Color, 4>& cols) : colors(cols) { }
+
+    const Color& top() const { return colors[0]; }
+    const Color& left() const { return colors[1]; }
+    const Color& right() const { return colors[2]; }
+    const Color& edge() const { return colors[3]; }
+
+    Vector3 topV() const { return Vector3{ top().r / 255.0f, top().g / 255.0f, top().b / 255.0f }; }
+    Vector3 leftV() const { return Vector3{ left().r / 255.0f, left().g / 255.0f, left().b / 255.0f }; }
+    Vector3 rightV() const { return Vector3{ right().r / 255.0f, right().g / 255.0f, right().b / 255.0f }; }
+  };
+  
+  class Piece
+  {
+    PieceColor _color;
+    PieceOrientation _orientation;
+    coord2d_t _coord;
+
+  public:
+    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation) :
+      _coord(coord), _color(*color), _orientation(orientation) { }
+
+    coord2d_t coord() const { return _coord; }
+    coord_t x() const { return _coord.x; }
+    coord_t y() const { return _coord.y; }
+  };
+
+  class Layer
+  {
+  protected:
+    layer_index_t _index;
+    std::vector<Piece> _pieces;
+    Layer* _prev;
+    Layer* _next;
+
+  public:
+    Layer() : _prev(nullptr), _next(nullptr) { }
+
+    void add(const Piece& piece) { _pieces.push_back(piece); }
+
+    layer_index_t index() const { return _index; }
+    const auto& pieces() const { return _pieces; }
+
+    friend class nb::Model;
+  };
+
+  class Model
+  {
+  protected:
+    std::vector<std::unique_ptr<Layer>> _layers;
+
+    void linkLayers(Layer* prev, Layer* next);
+
+  public:
+    void addLayer(layer_index_t index);
+    
+    Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
+    const auto& layers() const { return _layers; }
+
+  };
+}
+
+void nb::Model::linkLayers(Layer* prev, Layer* next)
+{
+  if (prev) prev->_next = next;
+  if (next) next->_prev = prev;
+}
+
+void nb::Model::addLayer(layer_index_t index)
+{
+  auto newLayer = std::make_unique<Layer>();
+  newLayer->_index = index;
+
+  if (index > 0)
+  {
+    Layer* prev = _layers[index - 1].get();
+    linkLayers(prev, newLayer.get());
+  }
+
+  if (index < _layers.size())
+  {
+    Layer* nextLayer = _layers[index].get();
+    linkLayers(newLayer.get(), nextLayer);
+  }
+
+  for (size_t i = index; i < _layers.size(); ++i)
+    _layers[i]->_index += 1;
+
+  index = std::min(index, _layers.size() - 1);
+  _layers.insert(_layers.begin() + index, std::move(newLayer));
+}
+
 
 void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camera3D& cam, Color col) {
   // Direzione di vista proiettata sul piano XZ
@@ -87,26 +205,14 @@ void main()
 }
 )";
 
-struct PieceColor
-{
-  std::array<raylib::Color, 4> colors;
 
-  const Color& top() const { return colors[0]; }
-  const Color& left() const { return colors[1]; }
-  const Color& right() const { return colors[2]; }
-  const Color& edge() const { return colors[3]; }
 
-  Vector3 topV() const { return Vector3{top().r / 255.0f, top().g / 255.0f, top().b / 255.0f}; }
-  Vector3 leftV() const { return Vector3{left().r / 255.0f, left().g / 255.0f, left().b / 255.0f}; }
-  Vector3 rightV() const { return Vector3{right().r / 255.0f, right().g / 255.0f, right().b / 255.0f}; }
-};
-
-PieceColor lime = {
-  Color{ 164, 219, 15, 255 },
-  Color{ 147, 205, 14, 255 },
-  Color{ 112, 173, 11, 255 },
-  Color{ 107, 166, 11, 255 }
-};
+nb::PieceColor lime = nb::PieceColor({
+  raylib::Color( 164, 219, 15, 255 ),
+  raylib::Color( 147, 205, 14, 255 ),
+  raylib::Color( 112, 173, 11, 255 ),
+  raylib::Color( 107, 166, 11, 255 )
+});
 
 // Replica la trasform di DrawModel: T(pos) * R(rot) * S(scale) * model.transform
 static inline Matrix MakeDrawTransform(Vector3 pos, float scale, Matrix rot, const Model& model) {
@@ -117,7 +223,8 @@ static inline Matrix MakeDrawTransform(Vector3 pos, float scale, Matrix rot, con
 }
 
 // Disegna i 12 bordi del cubo dato centro e dimensioni (in local space) + trasform finale
-static inline void DrawCubeEdgesFast(Vector3 centerLocal, float w, float h, float d, const Matrix& world, Color col) {
+static inline void DrawCubeEdgesFast(Vector3 centerLocal, float w, float h, float d, const Matrix& world, Color col)
+{
   const float hw = w * 0.5f, hh = h * 0.5f, hd = d * 0.5f;
 
   // 8 vertici in local space
@@ -186,6 +293,10 @@ void DrawCylinderWireframe(Vector3 center, float radius, float height, int segme
   DrawCylinderEx(b0, b1, 0.02f, 0.02f, 8, col);
 }
 
+
+
+
+
 constexpr float side = 3.8f;   // lato
 constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
@@ -195,7 +306,7 @@ struct Data
 {
   struct Constants
   {
-    static constexpr float side = 3.8f; 
+    static constexpr float side = 3.8f;
     static constexpr float height = 3.1f;
     static constexpr float studHeight = 1.4f;
     static constexpr float studDiameter = 2.5f;
@@ -205,7 +316,13 @@ struct Data
   {
     raylib::Shader flatShading;
   } shaders;
-  
+
+  struct Meshes
+  {
+    raylib::Mesh cube;
+    raylib::Mesh stud;
+  } meshes;
+
   struct Models
   {
     raylib::Model cube;
@@ -213,15 +330,18 @@ struct Data
   } models;
 
   void init();
+  void deinit();
 };
 
 void Data::init()
 {
-  raylib::Mesh cube = GenMeshCube(side, height, side);
-  models.cube.Load(cube);
+  meshes.cube = raylib::Mesh::Cube(side, height, side);
+  models.cube.Load(meshes.cube);
+  models.cube.SetTransform(raylib::Matrix::Identity());
 
-  raylib::Mesh stud = GenMeshCylinder(studDiameter / 2.0f, studHeight, 32);
-  models.stud.Load(stud);
+  meshes.stud = raylib::Mesh::Cylinder(studDiameter / 2.0f, studHeight, 32);
+  models.stud.SetTransform(raylib::Matrix::Identity());
+  models.stud.Load(meshes.stud);
 
   shaders.flatShading = raylib::Shader::LoadFromMemory(vertShader, fragShader);
   shaders.flatShading.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading.GetLocation("mvp");
@@ -231,17 +351,77 @@ void Data::init()
   models.stud.materials[0].shader = shaders.flatShading;
 }
 
+void Data::deinit()
+{
+  models.cube.Unload();
+  models.stud.Unload();
+
+  meshes.cube.Unload();
+  meshes.stud.Unload();
+
+  shaders.flatShading.Unload();
+}
+
 Data data;
+
+namespace gfx
+{
+  class Renderer
+  {
+  public:
+
+    void renderLayer(const nb::Layer* layer);
+    void renderModel(const nb::Model* model);
+  };
+}
+
+void gfx::Renderer::renderLayer(const nb::Layer* layer)
+{
+  /* compute the matrix for the layer */
+  raylib::Matrix layerTransform = raylib::Matrix::Translate(0.0f, layer->index() * height, 0.0f);
+
+  std::vector<Matrix> transforms(layer->pieces().size());
+
+  size_t i = 0;
+  for (const nb::Piece& piece : layer->pieces())
+  {
+    /* translate inside layer according to position */
+    raylib::Matrix pieceTransform = raylib::Matrix::Translate(piece.x() * side, height * 0.5f, piece.y() * side);
+    pieceTransform = pieceTransform * raylib::Matrix::Scale(2.0f, 1.0f, 1.0f);
+    /* combine layer and piece matrix */
+    transforms[i] = layerTransform * pieceTransform;
+    ++i;
+  }
+
+  data.meshes.cube.Draw(data.models.cube.materials[0], transforms.data(), transforms.size());
+}
+
+void gfx::Renderer::renderModel(const nb::Model* model)
+{
+  for (const auto& layer : model->layers())
+    renderLayer(layer.get());
+}
+
+
+nb::Model model;
+gfx::Renderer renderer;
+
 
 int main(int arg, char* argv[])
 {
+  model.addLayer(0);
+  model.layer(0)->add(nb::Piece({ 1, 0 }, &lime, nb::PieceOrientation::North));
+  model.layer(0)->add(nb::Piece({ 2, 0 }, &lime, nb::PieceOrientation::North));
+
   SetConfigFlags(FLAG_MSAA_4X_HINT);
 
-  InitWindow(1000, 700, "Nanoblock shader test - up vs side");
+  InitWindow(1000, 700, "Nanoforge v0.0.1a");
+
+  data.init();
 
   // Camera orbitale
   Camera3D cam = { 0 };
-  cam.position = { 10.0f, 10.0f, 10.0f };
+  cam.position = { 100.0f, 100.0f, 100.0f };
   cam.target = { 0.0f,  0.0f,  0.0f };
   cam.up = { 0.0f,  1.0f,  0.0f };
   cam.fovy = 45.0f;
@@ -279,27 +459,29 @@ int main(int arg, char* argv[])
     float   scale = 1.0f;
     Matrix  rot = MatrixIdentity();
 
+    /*
     data.models.cube.Draw(pos, raylib::Vector3(), 0.0f, raylib::Vector3(1.0f, 1.0f, 1.0f), WHITE);
 
     // Pass 2: wireframe bordi (sovrapposto)
-    Matrix world = MakeDrawTransform(pos, scale, rot, model);
+    Matrix world = MakeDrawTransform(pos, scale, rot, data.models.cube);
     // centro locale del box � (0,0,0) per GenMeshCube
     DrawCubeEdgesFast({ 0, 0, 0 }, side, height, side, world, lime.edge());
 
     {
-      DrawModel(studModel, { 0, height, 0 }, 1.0f, WHITE);
+      data.models.stud.Draw({ 0, height, 0 }, raylib::Vector3(), 0.0f, raylib::Vector3(1.0f, 1.0f, 1.0f), WHITE);
       DrawCylinderWireframe({ 0, 0, 0 }, studDiameter / 2.0f, studHeight, 32, lime.edge(), MatrixIdentity(), cam);
     }
+    */
 
+    renderer.renderModel(&model);
 
 
     EndMode3D();
     EndDrawing();
   }
 
-  UnloadModel(model);
-  UnloadModel(studModel);
-  UnloadShader(sh);
+  data.deinit();
+
   CloseWindow();
   return 0;
 }
