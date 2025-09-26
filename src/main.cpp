@@ -55,17 +55,20 @@ void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camer
 auto vertShader = R"(
 #version 330
 
-in vec3 vertexPosition;
-in vec3 vertexNormal;
-in mat4 instanceTransform;
+layout(location=0) in vec3 vertexPosition;
+layout(location=1) in vec3 vertexNormal;
+layout(location=2) in mat4 instanceTransform;
 
 uniform mat4 mvp;
 
 out vec3 vNormalWorld;
 
-void main() {
-    vNormalWorld = normalize((instanceTransform * vec4(vertexNormal, 0.0)).xyz);
-    gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
+void main()
+{
+  mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
+  vNormalWorld = normalize(normalMatrix * vertexNormal);
+
+  gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
 }
 )";
 
@@ -83,17 +86,16 @@ out vec4 fragColor;
 
 void main()
 {
-    float isUp = step(yThreshold, vNormalWorld.y);   // 1 se Y>=soglia, altrimenti 0
-
-    if (isUp > 0.5)
-    {
-      fragColor = vec4(colorUp, 1.0);
-    }
-    else
-    {      
-      vec3 col = (vNormalWorld.x > 0.0) ? colorRight : colorLeft;
-      fragColor = vec4(col, 1.0);
-    }
+  float isUp = step(yThreshold, vNormalWorld.y);   // 1 se Y>=soglia, altrimenti 0
+  if (isUp > 0.5)
+  {
+    fragColor = vec4(colorUp, 1.0);
+  }
+  else
+  {      
+    vec3 col = (vNormalWorld.x > 0.0) ? colorRight : colorLeft;
+    fragColor = vec4(col, 1.0);
+  }
 }
 )";
 
@@ -231,7 +233,7 @@ void Data::init()
 
   shaders.flatShading = raylib::Shader::LoadFromMemory(vertShader, fragShader);
   shaders.flatShading.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading.GetLocation("mvp");
-  shaders.flatShading.locs[SHADER_LOC_MATRIX_MODEL] = shaders.flatShading.GetLocation("instanceTransform");
+  shaders.flatShading.locs[SHADER_LOC_MATRIX_MODEL] = shaders.flatShading.GetLocationAttrib("instanceTransform");
 
 
   materials.flatMaterial.shader = shaders.flatShading;
@@ -574,107 +576,3 @@ int main(int arg, char* argv[])
   CloseWindow();
   return 0;
 }
-
-int maizzn(int argc, char *argv[])
-{
-  SetConfigFlags(FLAG_MSAA_4X_HINT);
-
-  raylib::Window bootstrap(1, 1, "Bootstrap");
-
-  int monitor = GetCurrentMonitor();
-  raylib::Vector2 screenSize = raylib::Vector2(GetMonitorWidth(monitor), GetMonitorHeight(monitor));
-  screenSize.x = std::min(screenSize.x * 0.666f, 1920.0f);
-  screenSize.y = screenSize.x * 1.0f/(16.0f/10.0f);  // 16:9 aspect ratio
-
-  bootstrap.Close();
-
-  raylib::Window window = raylib::Window(screenSize.x, screenSize.y, "Nanoblock");
-  SetTargetFPS(60);
-
-  Camera camera = { 0 };
-  camera.position = { 50.0f, 50.0f, 50.0f }; 
-  camera.target = { 0.0f, 0.0f, 0.0f };
-  camera.up = { 0.0f, 1.0f, 0.0f }; 
-  camera.fovy = 45.0f; 
-  camera.projection = CAMERA_PERSPECTIVE;
-
-
-
-  Color fillColor = Color{164, 219, 15, 255};
-  Color strokeColor = Color{147, 205, 14, 255};
-
-
-  while (!WindowShouldClose())
-  {
-    //UpdateCamera(&camera, CAMERA_PERSPECTIVE);
-    
-    BeginDrawing();
-    ClearBackground(RAYWHITE);
-
-
-
-    if (false)
-    {
-
-      BeginMode3D(camera);
-
-      // Base cubo
-      DrawCube(
-        { 0.0f, height / 2.0f, 0.0f }, // centro a met� altezza
-        side, height, side,
-        fillColor
-      );
-      DrawCubeWires(
-        { 0.0f, height / 2.0f, 0.0f },
-        side, height, side,
-        strokeColor
-      );
-
-      // Stud cilindrico
-      DrawCylinder(
-        { 0.0f, height, 0.0f },   // centro del fondo del cilindro
-        studDiameter / 2.0f,          // raggio base
-        studDiameter / 2.0f,          // raggio top (cilindro dritto)
-        studHeight,                 // altezza
-        32,                         // segmenti
-        fillColor
-      );
-      /*DrawCylinderSilhouette(
-        { 0.0f, height, 0.0f },
-        studDiameter / 2.0f,
-        studHeight,
-        camera,
-        BLACK);*/
-
-      DrawCylinderWires(
-        { 0.0f, height, 0.0f },
-        studDiameter / 2.0f,
-        studDiameter / 2.0f,
-        studHeight,
-        32,
-        strokeColor
-      );
-    }
-
-    EndMode3D();
-    EndDrawing();
-  }
-
-  CloseWindow();
-
-  return 0;
-}
-
-/*
-
-    {
-      "name": "GREEN_LIME",
-      "colors": [
-        [164, 219, 15],
-        [147, 205, 14],
-        [112, 173, 11],
-        [107, 166, 11]
-      ]
-    },
-
-*/
