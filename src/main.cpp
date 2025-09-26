@@ -1,163 +1,27 @@
 #include "imgui.h"
 #include "raylib.hpp"
 #include "rlImGui.h"
-#include "Vector2.hpp"
-#include "Vector3.hpp"
-#include "Rectangle.hpp"
 #include "Matrix.hpp"
-#include "Color.hpp"
 #include "Window.hpp"
 #include "Mesh.hpp"
 #include "Model.hpp"
 #include "Shader.hpp"
 #include "Camera3D.hpp"
 
+#include "defines.h"
+
 
 #include <vector>
 #include <array>
 #include <memory>
 
+#include "model/common.h"
+#include "model/piece.h"
+#include "model/model.h"
+
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
 
-struct size2d_t
-{
-  int32_t width;
-  int32_t height;
-
-  size2d_t(int32_t w, int32_t h) : width(w), height(h) { }
-};
-
-using vec2 = raylib::Vector2;
-using vec3 = raylib::Vector3;
-using rect = raylib::Rectangle;
-using color = raylib::Color;
-
-namespace nb
-{
-  using layer_index_t = int32_t;
-  using coord_t = int32_t;
-
-  class Model;
-
-  struct coord2d_t
-  {
-    coord_t x;
-    coord_t y;
-  };
-
-
-
-  enum class PieceOrientation
-  {
-    North = 0x01, East = 0x02, South = 0x04, West = 0x08
-  };
-
-  struct PieceColor
-  {
-    std::array<raylib::Color, 4> colors;
-
-    PieceColor(const std::array<raylib::Color, 4>& cols) : colors(cols) { }
-
-    const raylib::Color& top() const { return colors[0]; }
-    const raylib::Color& left() const { return colors[1]; }
-    const raylib::Color& right() const { return colors[2]; }
-    const raylib::Color& edge() const { return colors[3]; }
-
-    Vector3 topV() const { return Vector3{ top().r / 255.0f, top().g / 255.0f, top().b / 255.0f }; }
-    Vector3 leftV() const { return Vector3{ left().r / 255.0f, left().g / 255.0f, left().b / 255.0f }; }
-    Vector3 rightV() const { return Vector3{ right().r / 255.0f, right().g / 255.0f, right().b / 255.0f }; }
-  };
-  
-  class Piece
-  {
-    PieceColor _color;
-    PieceOrientation _orientation;
-    coord2d_t _coord;
-    size2d_t _size;
-
-  public:
-    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, size2d_t size = size2d_t(1, 1)) :
-      _coord(coord), _color(*color), _orientation(orientation), _size(size) { }
-
-    coord2d_t coord() const { return _coord; }
-    coord_t x() const { return _coord.x; }
-    coord_t y() const { return _coord.y; }
-    const PieceColor& color() const { return _color; }
-
-    int32_t width() const { return _size.width; }
-    int32_t height() const { return _size.height; }
-  };
-
-  class Layer
-  {
-  protected:
-    layer_index_t _index;
-    std::vector<Piece> _pieces;
-    Layer* _prev;
-    Layer* _next;
-
-  public:
-    Layer() : _index(0), _prev(nullptr), _next(nullptr) { }
-
-    void add(const Piece& piece) { _pieces.push_back(piece); }
-
-    layer_index_t index() const { return _index; }
-    const auto& pieces() const { return _pieces; }
-
-    const Layer* prev() const { return _prev; }
-
-    friend class nb::Model;
-  };
-
-  class Model
-  {
-  protected:
-    std::vector<std::unique_ptr<Layer>> _layers;
-
-    void linkLayers(Layer* prev, Layer* next);
-
-  public:
-    void addLayer(layer_index_t index);
-    
-    const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
-    Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
-    const auto& layers() const { return _layers; }
-
-    layer_index_t lastLayerIndex() const { return static_cast<layer_index_t>(_layers.size()) - 1; }
-    layer_index_t layerCount() const { return static_cast<layer_index_t>(_layers.size()); }
-  };
-}
-
-void nb::Model::linkLayers(Layer* prev, Layer* next)
-{
-  if (prev) prev->_next = next;
-  if (next) next->_prev = prev;
-}
-
-void nb::Model::addLayer(layer_index_t index)
-{
-  auto newLayer = std::make_unique<Layer>();
-  newLayer->_index = index;
-
-  if (index > 0)
-  {
-    Layer* prev = _layers[index - 1].get();
-    linkLayers(prev, newLayer.get());
-  }
-
-  if (index < _layers.size())
-  {
-    Layer* nextLayer = _layers[index].get();
-    linkLayers(newLayer.get(), nextLayer);
-  }
-
-  for (layer_index_t i = index; i < _layers.size(); ++i)
-    _layers[i]->_index += 1;
-
-  index = std::min(index, static_cast<layer_index_t>(_layers.size()));
-  _layers.insert(_layers.begin() + index, std::move(newLayer));
-}
 
 
 void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camera3D& cam, Color col) {
@@ -402,7 +266,7 @@ namespace gfx
 
   protected:
 
-    void renderLayerGrid3d(nb::layer_index_t index, size2d_t size);
+    void renderLayerGrid3d(layer_index_t index, size2d_t size);
     void renderLayer(const nb::Layer* layer);
     void renderModel(const nb::Model* model);
     void renderStuds();
@@ -460,7 +324,7 @@ void gfx::Renderer::render(const nb::Model* model)
   renderStuds();
 }
 
-void gfx::Renderer::renderLayerGrid3d(nb::layer_index_t index, size2d_t size)
+void gfx::Renderer::renderLayerGrid3d(layer_index_t index, size2d_t size)
 {
   for (int x = 0; x < size.width; ++x)
   {
@@ -550,7 +414,7 @@ void InputHandler::handle(nb::Model* model)
 {
   vec2 position = GetMousePosition();
 
-  for (nb::layer_index_t i = 0; i < model->layerCount(); ++i)
+  for (layer_index_t i = 0; i < model->layerCount(); ++i)
   {
     float y = (gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height) * i + (LAYER2D_SPACING * i);
     rect bounds = rect(LAYER2D_BASE.x, LAYER2D_BASE.y + y, gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.width, gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height);
@@ -559,7 +423,7 @@ void InputHandler::handle(nb::Model* model)
     if (bounds.CheckCollision(position))
     {
       auto relative = position - bounds.Origin();
-      nb::coord2d_t cell = nb::coord2d_t(relative.x / LAYER2D_CELL_SIZE.width, relative.y / LAYER2D_CELL_SIZE.height);
+      coord2d_t cell = coord2d_t(relative.x / LAYER2D_CELL_SIZE.width, relative.y / LAYER2D_CELL_SIZE.height);
     }
   }
 }
@@ -641,7 +505,7 @@ int main(int arg, char* argv[])
 
     EndMode3D();
 
-    for (nb::layer_index_t i = 0; i < model.layerCount(); ++i)
+    for (layer_index_t i = 0; i < model.layerCount(); ++i)
     {
       auto idx = model.lastLayerIndex() - i;
       float y = (gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height) * i + (LAYER2D_SPACING * i);
