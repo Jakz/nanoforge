@@ -403,15 +403,30 @@ static vec2 LAYER2D_BASE = vec2(10.0f, 10.0f);
 static float LAYER2D_SPACING = 10.0f;
 
 
+#include <optional>
 
 class InputHandler
 {
+  enum class MouseButton { Left = 0, Middle, Right };
+  
+  std::array<bool, 3> _mouseState;
+  std::optional<coord3d_t> _hover;
+
+  nb::Model* model;
+
 public:
+  InputHandler() : _mouseState({ false, false, false }) { }
+
+  void mouseDown(MouseButton button);
+  void mouseUp(MouseButton button);
+
   void handle(nb::Model* model);
 };
 
 void InputHandler::handle(nb::Model* model)
 {
+  this->model = model;
+
   vec2 position = GetMousePosition();
 
   for (layer_index_t i = 0; i < model->layerCount(); ++i)
@@ -424,8 +439,41 @@ void InputHandler::handle(nb::Model* model)
     {
       auto relative = position - bounds.Origin();
       coord2d_t cell = coord2d_t(relative.x / LAYER2D_CELL_SIZE.width, relative.y / LAYER2D_CELL_SIZE.height);
+      _hover = coord3d_t(cell, model->lastLayerIndex() - i);
+    }
+    else
+      _hover.reset();
+  }
+
+  /* fetch button state into a new std::array and call relevant methods if state changed */
+  std::array<bool, 3> newState = { IsMouseButtonDown(MOUSE_LEFT_BUTTON), IsMouseButtonDown(MOUSE_MIDDLE_BUTTON), IsMouseButtonDown(MOUSE_RIGHT_BUTTON) };
+  for (size_t i = 0; i < _mouseState.size(); ++i)
+  {
+    if (newState[i] != _mouseState[i])
+    {
+      if (newState[i])
+        mouseDown(static_cast<MouseButton>(i));
+      else
+        mouseUp(static_cast<MouseButton>(i));
     }
   }
+  _mouseState = newState;
+}
+
+void InputHandler::mouseDown(MouseButton button)
+{
+  if (button == MouseButton::Left && _hover)
+  {
+    // add a piece at hover position
+    nb::Piece* p = model->piece(*_hover);
+    if (p)
+      model->remove(p);
+  }
+}
+
+void InputHandler::mouseUp(MouseButton button)
+{
+
 }
 
 

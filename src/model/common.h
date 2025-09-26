@@ -10,6 +10,19 @@ struct coord2d_t
 {
   coord_t x;
   coord_t y;
+
+  coord2d_t(coord_t x = 0, coord_t y = 0) : x(x), y(y) { }
+};
+
+struct coord3d_t
+{
+  coord_t x;
+  coord_t y;
+  layer_index_t z;
+
+  coord3d_t(coord2d_t c, layer_index_t l) : x(c.x), y(c.y), z(l) { }
+
+  coord2d_t xy() const { return coord2d_t(x, y); }
 };
 
 struct size2d_t

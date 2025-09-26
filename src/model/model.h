@@ -21,6 +21,7 @@ namespace nb
     Layer() : _index(0), _prev(nullptr), _next(nullptr) { }
 
     void add(const Piece& piece) { _pieces.push_back(piece); }
+    Piece* piece(const coord2d_t& coord) const;
 
     layer_index_t index() const { return _index; }
     const auto& pieces() const { return _pieces; }
@@ -39,12 +40,16 @@ namespace nb
 
   public:
     void addLayer(layer_index_t index);
-
-    const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
+    
     Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
+    const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
+    
     const auto& layers() const { return _layers; }
 
     layer_index_t lastLayerIndex() const { return static_cast<layer_index_t>(_layers.size()) - 1; }
     layer_index_t layerCount() const { return static_cast<layer_index_t>(_layers.size()); }
+
+    Piece* piece(const coord3d_t& coord) const;
+    void remove(const Piece* piece);
   };
 }

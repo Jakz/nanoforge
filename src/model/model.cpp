@@ -1,5 +1,18 @@
 #include "model.h"
 
+using namespace nb;
+
+Piece* nb::Layer::piece(const coord2d_t& coord) const
+{
+  for (const auto& p : _pieces)
+  {
+    if (p.x() >= coord.x && p.x() < coord.x + p.width() &&
+      p.y() >= coord.y && p.y() < coord.y + p.height())
+      return const_cast<Piece*>(&p);
+  }
+  return nullptr;
+}
+
 void nb::Model::linkLayers(Layer* prev, Layer* next)
 {
   if (prev) prev->_next = next;
@@ -28,4 +41,29 @@ void nb::Model::addLayer(layer_index_t index)
 
   index = std::min(index, static_cast<layer_index_t>(_layers.size()));
   _layers.insert(_layers.begin() + index, std::move(newLayer));
+}
+
+Piece* nb::Model::piece(const coord3d_t& coord) const
+{
+  const Layer* layer = this->layer(coord.z);
+
+  if (layer)
+    return layer->piece(coord.xy());
+
+  return nullptr;
+}
+
+void nb::Model::remove(const Piece* p)
+{
+  for (auto& layer : _layers)
+  {
+    for (auto it = layer->_pieces.begin(); it != layer->_pieces.end(); ++it)
+    {
+      if (&(*it) == p)
+      {
+        layer->_pieces.erase(it);
+        return;
+      }
+    }
+  }
 }
