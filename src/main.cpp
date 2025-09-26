@@ -8,6 +8,8 @@
 #include "Shader.hpp"
 #include "Camera3D.hpp"
 
+#include "io/node.hpp"
+
 #include "defines.h"
 
 
@@ -248,6 +250,28 @@ void Data::deinit()
 
 Data data;
 
+#include <optional>
+
+class InputHandler
+{
+  enum class MouseButton { Left = 0, Middle, Right };
+  
+  std::array<bool, 3> _mouseState;
+  std::optional<coord3d_t> _hover;
+
+  nb::Model* model;
+
+public:
+  InputHandler() : _mouseState({ false, false, false }) { }
+
+  void mouseDown(MouseButton button);
+  void mouseUp(MouseButton button);
+
+  void handle(nb::Model* model);
+
+  const auto& hover() const { return _hover; }
+};
+
 namespace gfx
 {
   class Renderer
@@ -402,33 +426,13 @@ static size2d_t LAYER2D_CELL_SIZE = size2d_t(16.0f, 16.0f);
 static vec2 LAYER2D_BASE = vec2(10.0f, 10.0f);
 static float LAYER2D_SPACING = 10.0f;
 
-
-#include <optional>
-
-class InputHandler
-{
-  enum class MouseButton { Left = 0, Middle, Right };
-  
-  std::array<bool, 3> _mouseState;
-  std::optional<coord3d_t> _hover;
-
-  nb::Model* model;
-
-public:
-  InputHandler() : _mouseState({ false, false, false }) { }
-
-  void mouseDown(MouseButton button);
-  void mouseUp(MouseButton button);
-
-  void handle(nb::Model* model);
-};
-
 void InputHandler::handle(nb::Model* model)
 {
   this->model = model;
 
   vec2 position = GetMousePosition();
 
+  bool any = false;
   for (layer_index_t i = 0; i < model->layerCount(); ++i)
   {
     float y = (gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height) * i + (LAYER2D_SPACING * i);
@@ -440,10 +444,13 @@ void InputHandler::handle(nb::Model* model)
       auto relative = position - bounds.Origin();
       coord2d_t cell = coord2d_t(relative.x / LAYER2D_CELL_SIZE.width, relative.y / LAYER2D_CELL_SIZE.height);
       _hover = coord3d_t(cell, model->lastLayerIndex() - i);
+      any = true;
+      break;
     }
-    else
-      _hover.reset();
   }
+  
+  if (!any)
+    _hover.reset();
 
   /* fetch button state into a new std::array and call relevant methods if state changed */
   std::array<bool, 3> newState = { IsMouseButtonDown(MOUSE_LEFT_BUTTON), IsMouseButtonDown(MOUSE_MIDDLE_BUTTON), IsMouseButtonDown(MOUSE_RIGHT_BUTTON) };
@@ -477,14 +484,52 @@ void InputHandler::mouseUp(MouseButton button)
 }
 
 
-
-
-int main(int arg, char* argv[])
+struct Context
 {
   nb::Model model;
   gfx::Renderer renderer;
   InputHandler input;
+};
+
+
+#include <filesystem>
+
+class Loader
+{
+  public:
+    bool load(const std::filesystem::path& filename, nb::Model& model);
+};
+
+bool Loader::load(const std::filesystem::path& filename, nb::Model& model)
+{
+  /* read filename to string by using C api */
+  FILE* file = fopen(filename.c_str(), "rb");
   
+  /* get file length through std::filesystem api */
+  auto length = std::filesystem::file_size(filename);
+  std::string yaml;
+  yaml.resize(length);
+  fread(yaml.data(), 1, length, file);
+  fclose(file);
+  
+  auto node = fkyaml::node::deserialize(yaml);
+
+  if (node.is_mapping())
+  {
+    
+  }
+
+  return true;
+}
+
+int main(int arg, char* argv[])
+{
+  Context context;
+
+  auto& model = context.model;
+  gfx::Renderer& renderer = context.renderer;
+  InputHandler& input = context.input;
+
   model.addLayer(0);
   model.layer(0)->add(nb::Piece({ 0, 0 }, &lime, nb::PieceOrientation::North));
   model.layer(0)->add(nb::Piece({ 1, 1 }, &lime, nb::PieceOrientation::North));
@@ -560,6 +605,12 @@ int main(int arg, char* argv[])
       renderer.renderLayerGrid2d(LAYER2D_BASE + vec2(0, y), model.layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), LAYER2D_CELL_SIZE);
     }
    
+    if (input.hover())
+    {
+      /* draw string with coordinate in bottom left corner */
+      std::string coordStr = TextFormat("Hover: %d - (%d, %d)", input.hover()->z, input.hover()->x, input.hover()->y);
+      DrawText(coordStr.c_str(), 10, GetScreenHeight() - 30, 14, DARKGRAY);
+    }
 
     /*rlImGuiBegin();
     bool open = true;

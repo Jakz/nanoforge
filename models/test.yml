@@ -1,0 +1,9 @@
+pieces:
+  - id: piece1
+    type: square1x1
+    color: red
+    position: [0, 0, 0]
+  - id: piece2
+    type: square1x1
+    color: blue
+    position: [0, 1, 0]
