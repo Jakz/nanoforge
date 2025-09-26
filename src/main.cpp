@@ -1,12 +1,16 @@
+#include "imgui.h"
 #include "raylib.hpp"
+#include "rlImGui.h"
 #include "Vector2.hpp"
 #include "Vector3.hpp"
+#include "Rectangle.hpp"
 #include "Matrix.hpp"
 #include "Color.hpp"
 #include "Window.hpp"
 #include "Mesh.hpp"
 #include "Model.hpp"
 #include "Shader.hpp"
+#include "Camera3D.hpp"
 
 
 #include <vector>
@@ -16,9 +20,22 @@
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
 
+struct size2d_t
+{
+  int32_t width;
+  int32_t height;
+
+  size2d_t(int32_t w, int32_t h) : width(w), height(h) { }
+};
+
+using vec2 = raylib::Vector2;
+using vec3 = raylib::Vector3;
+using rect = raylib::Rectangle;
+using color = raylib::Color;
+
 namespace nb
 {
-  using layer_index_t = size_t;
+  using layer_index_t = int32_t;
   using coord_t = int32_t;
 
   class Model;
@@ -28,6 +45,8 @@ namespace nb
     coord_t x;
     coord_t y;
   };
+
+
 
   enum class PieceOrientation
   {
@@ -40,10 +59,10 @@ namespace nb
 
     PieceColor(const std::array<raylib::Color, 4>& cols) : colors(cols) { }
 
-    const Color& top() const { return colors[0]; }
-    const Color& left() const { return colors[1]; }
-    const Color& right() const { return colors[2]; }
-    const Color& edge() const { return colors[3]; }
+    const raylib::Color& top() const { return colors[0]; }
+    const raylib::Color& left() const { return colors[1]; }
+    const raylib::Color& right() const { return colors[2]; }
+    const raylib::Color& edge() const { return colors[3]; }
 
     Vector3 topV() const { return Vector3{ top().r / 255.0f, top().g / 255.0f, top().b / 255.0f }; }
     Vector3 leftV() const { return Vector3{ left().r / 255.0f, left().g / 255.0f, left().b / 255.0f }; }
@@ -55,14 +74,19 @@ namespace nb
     PieceColor _color;
     PieceOrientation _orientation;
     coord2d_t _coord;
+    size2d_t _size;
 
   public:
-    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation) :
-      _coord(coord), _color(*color), _orientation(orientation) { }
+    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, size2d_t size = size2d_t(1, 1)) :
+      _coord(coord), _color(*color), _orientation(orientation), _size(size) { }
 
     coord2d_t coord() const { return _coord; }
     coord_t x() const { return _coord.x; }
     coord_t y() const { return _coord.y; }
+    const PieceColor& color() const { return _color; }
+
+    int32_t width() const { return _size.width; }
+    int32_t height() const { return _size.height; }
   };
 
   class Layer
@@ -74,12 +98,14 @@ namespace nb
     Layer* _next;
 
   public:
-    Layer() : _prev(nullptr), _next(nullptr) { }
+    Layer() : _index(0), _prev(nullptr), _next(nullptr) { }
 
     void add(const Piece& piece) { _pieces.push_back(piece); }
 
     layer_index_t index() const { return _index; }
     const auto& pieces() const { return _pieces; }
+
+    const Layer* prev() const { return _prev; }
 
     friend class nb::Model;
   };
@@ -94,9 +120,12 @@ namespace nb
   public:
     void addLayer(layer_index_t index);
     
+    const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
     Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
     const auto& layers() const { return _layers; }
 
+    layer_index_t lastLayerIndex() const { return static_cast<layer_index_t>(_layers.size()) - 1; }
+    layer_index_t layerCount() const { return static_cast<layer_index_t>(_layers.size()); }
   };
 }
 
@@ -123,10 +152,10 @@ void nb::Model::addLayer(layer_index_t index)
     linkLayers(newLayer.get(), nextLayer);
   }
 
-  for (size_t i = index; i < _layers.size(); ++i)
+  for (layer_index_t i = index; i < _layers.size(); ++i)
     _layers[i]->_index += 1;
 
-  index = std::min(index, _layers.size() - 1);
+  index = std::min(index, static_cast<layer_index_t>(_layers.size()));
   _layers.insert(_layers.begin() + index, std::move(newLayer));
 }
 
@@ -166,6 +195,8 @@ auto vertShader = R"(
 in vec3 vertexPosition;
 in vec3 vertexNormal;
 
+attribute mat4 instanceTransform;
+
 uniform mat4 mvp;
 uniform mat4 matModel;
 
@@ -173,7 +204,7 @@ out vec3 vNormalWorld;
 
 void main() {
     vNormalWorld = normalize((matModel * vec4(vertexNormal, 0.0)).xyz);
-    gl_Position = mvp * vec4(vertexPosition, 1.0);
+    gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
 }
 )";
 
@@ -215,28 +246,28 @@ nb::PieceColor lime = nb::PieceColor({
 });
 
 // Replica la trasform di DrawModel: T(pos) * R(rot) * S(scale) * model.transform
-static inline Matrix MakeDrawTransform(Vector3 pos, float scale, Matrix rot, const Model& model) {
+static inline Matrix MakeDrawTransform(Vector3 pos, float scale, Matrix rot, const raylib::Matrix& modelMatrix) {
   Matrix S = MatrixScale(scale, scale, scale);
-  Matrix TS = MatrixMultiply(S, model.transform);          // S * model.transform
+  Matrix TS = MatrixMultiply(S, modelMatrix);          // S * model.transform
   Matrix T = MatrixTranslate(pos.x, pos.y, pos.z);
   return MatrixMultiply(T, TS);                            // T * (S * model.transform)
 }
 
 // Disegna i 12 bordi del cubo dato centro e dimensioni (in local space) + trasform finale
-static inline void DrawCubeEdgesFast(Vector3 centerLocal, float w, float h, float d, const Matrix& world, Color col)
+static inline void DrawCubeEdgesFast(float w, float h, float d, const Matrix& world, Color col)
 {
   const float hw = w * 0.5f, hh = h * 0.5f, hd = d * 0.5f;
 
   // 8 vertici in local space
   Vector3 v[8] = {
-      {centerLocal.x - hw, centerLocal.y - hh, centerLocal.z - hd},
-      {centerLocal.x + hw, centerLocal.y - hh, centerLocal.z - hd},
-      {centerLocal.x + hw, centerLocal.y + hh, centerLocal.z - hd},
-      {centerLocal.x - hw, centerLocal.y + hh, centerLocal.z - hd},
-      {centerLocal.x - hw, centerLocal.y - hh, centerLocal.z + hd},
-      {centerLocal.x + hw, centerLocal.y - hh, centerLocal.z + hd},
-      {centerLocal.x + hw, centerLocal.y + hh, centerLocal.z + hd},
-      {centerLocal.x - hw, centerLocal.y + hh, centerLocal.z + hd}
+      {- hw, - hh, - hd},
+      {+ hw, - hh, - hd},
+      {+ hw, + hh, - hd},
+      {- hw, + hh, - hd},
+      {- hw, - hh, + hd},
+      {+ hw, - hh, + hd},
+      {+ hw, + hh, + hd},
+      {- hw, + hh, + hd}
   };
 
   // indici dei 12 spigoli
@@ -270,8 +301,8 @@ void DrawCylinderWireframe(Vector3 center, float radius, float height, int segme
     Vector3 q0 = { center.x + radius * cosf(a0), y1, center.z + radius * sinf(a0) };
     Vector3 q1 = { center.x + radius * cosf(a1), y1, center.z + radius * sinf(a1) };
 
-    DrawCylinderEx(p0, p1, 0.02f, 0.02f, 8, col); // bottom circle
-    DrawCylinderEx(q0, q1, 0.02f, 0.02f, 8, col); // top circle
+    DrawCylinderEx(p0, p1, 0.04f, 0.04f, 8, col); // bottom circle
+    DrawCylinderEx(q0, q1, 0.04f, 0.04f, 8, col); // top circle
   }
 
   // --- due generatrici silhouette (a destra/sinistra rispetto alla camera) ---
@@ -289,8 +320,8 @@ void DrawCylinderWireframe(Vector3 center, float radius, float height, int segme
   Vector3 b0 = { center.x - radius * t.x, y0, center.z - radius * t.y };
   Vector3 b1 = { center.x - radius * t.x, y1, center.z - radius * t.y };
 
-  DrawCylinderEx(a0, a1, 0.02f, 0.02f, 8, col);
-  DrawCylinderEx(b0, b1, 0.02f, 0.02f, 8, col);
+  DrawCylinderEx(a0, a1, 0.04f, 0.04f, 8, col);
+  DrawCylinderEx(b0, b1, 0.04f, 0.04f, 8, col);
 }
 
 
@@ -314,20 +345,19 @@ struct Data
 
   struct Shaders
   {
-    raylib::Shader flatShading;
+    raylib::ShaderUnmanaged flatShading;
   } shaders;
+
+  struct Materials
+  {
+    raylib::Material flatMaterial;
+  } materials;
 
   struct Meshes
   {
     raylib::Mesh cube;
     raylib::Mesh stud;
   } meshes;
-
-  struct Models
-  {
-    raylib::Model cube;
-    raylib::Model stud;
-  } models;
 
   void init();
   void deinit();
@@ -336,30 +366,20 @@ struct Data
 void Data::init()
 {
   meshes.cube = raylib::Mesh::Cube(side, height, side);
-  models.cube.Load(meshes.cube);
-  models.cube.SetTransform(raylib::Matrix::Identity());
-
   meshes.stud = raylib::Mesh::Cylinder(studDiameter / 2.0f, studHeight, 32);
-  models.stud.SetTransform(raylib::Matrix::Identity());
-  models.stud.Load(meshes.stud);
 
   shaders.flatShading = raylib::Shader::LoadFromMemory(vertShader, fragShader);
   shaders.flatShading.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading.GetLocation("mvp");
   shaders.flatShading.locs[SHADER_LOC_MATRIX_MODEL] = shaders.flatShading.GetLocation("matModel");
 
-  models.cube.materials[0].shader = shaders.flatShading;
-  models.stud.materials[0].shader = shaders.flatShading;
+  materials.flatMaterial.shader = shaders.flatShading;
 }
 
 void Data::deinit()
 {
-  models.cube.Unload();
-  models.stud.Unload();
-
+  materials.flatMaterial.Unload();
   meshes.cube.Unload();
   meshes.stud.Unload();
-
-  shaders.flatShading.Unload();
 }
 
 Data data;
@@ -368,11 +388,95 @@ namespace gfx
 {
   class Renderer
   {
-  public:
+  protected:
+    raylib::Camera3D _camera;
+    std::vector<Matrix> _studTransforms;
 
+  public:
+    static constexpr int EDGE_COMPLEXITY = 6;
+    static constexpr int MOCK_LAYER_SIZE = 10;
+
+    void render(const nb::Model* model);
+
+    auto& camera() { return _camera; }
+
+  protected:
+
+    void renderLayerGrid3d(nb::layer_index_t index, size2d_t size);
     void renderLayer(const nb::Layer* layer);
     void renderModel(const nb::Model* model);
+    void renderStuds();
+
+  public:
+    void renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize)
+    {
+      /* draw a thin black grid with half opacity over the pieces */
+      for (int x = 0; x <= layerSize.width; ++x)
+      {
+        vec2 p0 = vec2(base.x + x * cellSize.width, base.y);
+        vec2 p1 = vec2(base.x + x * cellSize.width, base.y + layerSize.height * cellSize.height);
+        DrawLineV(p0, p1, color(0, 0, 0, 100));
+      }
+
+      for (int y = 0; y <= layerSize.height; ++y)
+      {
+        vec2 p0 = vec2(base.x, base.y + y * cellSize.height);
+        vec2 p1 = vec2(base.x + layerSize.width * cellSize.width, base.y + y * cellSize.height);
+        DrawLineV(p0, p1, color(0, 0, 0, 100));
+      }
+
+      /* draw pieces of layer below with half opacity */
+      auto prev = layer->prev();
+      if (prev)
+      {
+        for (const nb::Piece& piece : prev->pieces())
+        {
+          vec2 pos = vec2(base.x + piece.x() * cellSize.width, base.y + piece.y() * cellSize.height);
+          vec2 size = vec2(piece.width() * cellSize.width, piece.height() * cellSize.height);
+          DrawRectangleV(pos, size, piece.color().top().Fade(0.5f));
+          DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 1.0f, piece.color().edge().Fade(0.8f));
+        }
+      }
+      
+      /* draw pieces as rect with outline using piece color */
+      for (const nb::Piece& piece : layer->pieces())
+      {
+        vec2 pos = vec2(base.x + piece.x() * cellSize.width, base.y + piece.y() * cellSize.height);
+        vec2 size = vec2(piece.width() * cellSize.width, piece.height() * cellSize.height);
+
+        DrawRectangleV(pos, size, piece.color().top());
+        DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 2.0f, piece.color().edge());
+      }
+
+
+    }
   };
+}
+
+void gfx::Renderer::render(const nb::Model* model)
+{
+  _studTransforms.clear();
+  renderModel(model);
+  renderStuds();
+}
+
+void gfx::Renderer::renderLayerGrid3d(nb::layer_index_t index, size2d_t size)
+{
+  for (int x = 0; x < size.width; ++x)
+  {
+    /* draw vertical lines using DrawCylinderEx */
+    Vector3 p0 = { x * side, index * height, 0.0f };
+    Vector3 p1 = { x * side, index * height, (size.height - 1) * side };
+    DrawCylinderEx(p0, p1, 0.02f, 0.02f, EDGE_COMPLEXITY, raylib::Color(80, 80, 80, 100));
+  }
+
+  for (int y = 0; y < size.height; ++y)
+  {
+    /* draw horizontal lines using DrawCylinderEx */
+    Vector3 p0 = { 0.0f, index * height, y * side };
+    Vector3 p1 = { (size.width - 1) * side, index * height, y * side };
+    DrawCylinderEx(p0, p1, 0.02f, 0.02f, EDGE_COMPLEXITY, raylib::Color(80, 80, 80, 100));
+  }
 }
 
 void gfx::Renderer::renderLayer(const nb::Layer* layer)
@@ -386,46 +490,108 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
   for (const nb::Piece& piece : layer->pieces())
   {
     /* translate inside layer according to position */
-    raylib::Matrix pieceTransform = raylib::Matrix::Translate(piece.x() * side, height * 0.5f, piece.y() * side);
-    pieceTransform = pieceTransform * raylib::Matrix::Scale(2.0f, 1.0f, 1.0f);
+    raylib::Matrix pieceTransform = raylib::Matrix::Translate((piece.x() + piece.width() * 0.5f) * side, height * 0.5f, (piece.y() + piece.height() * 0.5f) * side);
+
+    for (int y = 0; y < piece.height(); ++y)
+      for (int x = 0; x < piece.width(); ++x)
+      {
+        _studTransforms.push_back(layerTransform * raylib::Matrix::Translate((piece.x() + x + 0.5f) * side, height, (piece.y() + y + 0.5f) * side));
+
+        raylib::Vector3 center = raylib::Vector3::Zero();
+        center = center.Transform(_studTransforms.back());
+
+        DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, lime.edge(), MatrixIdentity(), _camera);
+      }
+
+
+    pieceTransform = raylib::Matrix::Scale(piece.width(), 1.0f, piece.height()) * pieceTransform;
+ 
     /* combine layer and piece matrix */
     transforms[i] = layerTransform * pieceTransform;
     ++i;
+
+    DrawCubeEdgesFast(side, height, side, transforms[i - 1], lime.edge());
   }
 
-  data.meshes.cube.Draw(data.models.cube.materials[0], transforms.data(), transforms.size());
+  data.meshes.cube.Draw(data.materials.flatMaterial, transforms.data(), transforms.size());
+}
+
+void gfx::Renderer::renderStuds()
+{
+  if (_studTransforms.empty())
+    return;
+
+  data.meshes.stud.Draw(data.materials.flatMaterial, _studTransforms.data(), _studTransforms.size());
+
+  _studTransforms.clear();
 }
 
 void gfx::Renderer::renderModel(const nb::Model* model)
 {
   for (const auto& layer : model->layers())
     renderLayer(layer.get());
+
+  renderLayerGrid3d(0, size2d_t(MOCK_LAYER_SIZE, MOCK_LAYER_SIZE));
+}
+
+static size2d_t LAYER2D_CELL_SIZE = size2d_t(16.0f, 16.0f);
+static vec2 LAYER2D_BASE = vec2(10.0f, 10.0f);
+static float LAYER2D_SPACING = 10.0f;
+
+
+
+class InputHandler
+{
+public:
+  void handle(nb::Model* model);
+};
+
+void InputHandler::handle(nb::Model* model)
+{
+  vec2 position = GetMousePosition();
+
+  for (nb::layer_index_t i = 0; i < model->layerCount(); ++i)
+  {
+    float y = (gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height) * i + (LAYER2D_SPACING * i);
+    rect bounds = rect(LAYER2D_BASE.x, LAYER2D_BASE.y + y, gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.width, gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height);
+
+    /* if mouse is inside 2d layer grid */
+    if (bounds.CheckCollision(position))
+    {
+      auto relative = position - bounds.Origin();
+      nb::coord2d_t cell = nb::coord2d_t(relative.x / LAYER2D_CELL_SIZE.width, relative.y / LAYER2D_CELL_SIZE.height);
+    }
+  }
 }
 
 
-nb::Model model;
-gfx::Renderer renderer;
 
 
 int main(int arg, char* argv[])
 {
+  nb::Model model;
+  gfx::Renderer renderer;
+  InputHandler input;
+  
   model.addLayer(0);
-  model.layer(0)->add(nb::Piece({ 1, 0 }, &lime, nb::PieceOrientation::North));
-  model.layer(0)->add(nb::Piece({ 2, 0 }, &lime, nb::PieceOrientation::North));
+  model.layer(0)->add(nb::Piece({ 0, 0 }, &lime, nb::PieceOrientation::North));
+  model.layer(0)->add(nb::Piece({ 1, 1 }, &lime, nb::PieceOrientation::North));
+  model.layer(0)->add(nb::Piece({ 2, 2 }, &lime, nb::PieceOrientation::North, size2d_t(3, 2)));
+
+  model.addLayer(1);
+  model.layer(1)->add(nb::Piece({ 3, 3 }, &lime, nb::PieceOrientation::North));
 
   SetConfigFlags(FLAG_MSAA_4X_HINT);
 
-  InitWindow(1000, 700, "Nanoforge v0.0.1a");
+  InitWindow(1280, 800, "Nanoforge v0.0.1a");
 
   data.init();
 
-  // Camera orbitale
-  Camera3D cam = { 0 };
-  cam.position = { 100.0f, 100.0f, 100.0f };
-  cam.target = { 0.0f,  0.0f,  0.0f };
-  cam.up = { 0.0f,  1.0f,  0.0f };
-  cam.fovy = 45.0f;
-  cam.projection = CAMERA_PERSPECTIVE;
+  renderer.camera().target = { gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f,  0.0f,  gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f };
+  renderer.camera().position = { renderer.camera().target.x * 4.0f, renderer.camera().target.x * 2.0f, renderer.camera().target.y * 4.0f };
+  renderer.camera().up = { 0.0f,  1.0f,  0.0f };
+  renderer.camera().fovy = 45.0f;
+  renderer.camera().projection = CAMERA_PERSPECTIVE;
 
   // Uniform palette
   int locUp = data.shaders.flatShading.GetLocation("colorUp");
@@ -443,21 +609,19 @@ int main(int arg, char* argv[])
   data.shaders.flatShading.SetValue(locRight, &right, SHADER_UNIFORM_VEC3);
   data.shaders.flatShading.SetValue(locThr, &thr, SHADER_UNIFORM_FLOAT);
 
+  rlImGuiSetup(true);
+
   SetTargetFPS(60);
 
-  while (!WindowShouldClose()) {
-    UpdateCamera(&cam, CAMERA_ORBITAL);
+  while (!WindowShouldClose())
+  {
+    UpdateCamera(&renderer.camera(), CAMERA_ORBITAL);
 
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    BeginMode3D(cam);
-    DrawGrid(20, 10.0f);
-
-    // Disegna cubo al centro
-    Vector3 pos = { 0, height / 2, 0 };
-    float   scale = 1.0f;
-    Matrix  rot = MatrixIdentity();
+    BeginMode3D(renderer.camera());
+    //DrawGrid(20, 10.0f);
 
     /*
     data.models.cube.Draw(pos, raylib::Vector3(), 0.0f, raylib::Vector3(1.0f, 1.0f, 1.0f), WHITE);
@@ -473,10 +637,25 @@ int main(int arg, char* argv[])
     }
     */
 
-    renderer.renderModel(&model);
-
+    renderer.render(&model);
 
     EndMode3D();
+
+    for (nb::layer_index_t i = 0; i < model.layerCount(); ++i)
+    {
+      auto idx = model.lastLayerIndex() - i;
+      float y = (gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height) * i + (LAYER2D_SPACING * i);
+      renderer.renderLayerGrid2d(LAYER2D_BASE + vec2(0, y), model.layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), LAYER2D_CELL_SIZE);
+    }
+   
+
+    /*rlImGuiBegin();
+    bool open = true;
+    ImGui::ShowDemoWindow(&open);
+    rlImGuiEnd();*/
+
+    input.handle(&model);
+
     EndDrawing();
   }
 
@@ -517,55 +696,57 @@ int maizzn(int argc, char *argv[])
 
   while (!WindowShouldClose())
   {
-    UpdateCamera(&camera, CAMERA_PERSPECTIVE);
+    //UpdateCamera(&camera, CAMERA_PERSPECTIVE);
     
     BeginDrawing();
     ClearBackground(RAYWHITE);
-   // DrawTexture(tex, 0, 0, WHITE);
 
-    BeginMode3D(camera);
 
-    // Base cubo
-    DrawCube(
-      { 0.0f, height / 2.0f, 0.0f }, // centro a met� altezza
-      side, height, side,
-      fillColor
-    );
-    DrawCubeWires(
-      { 0.0f, height / 2.0f, 0.0f },
-      side, height, side,
-      strokeColor
-    );
 
-    // Stud cilindrico
-    DrawCylinder(
-      { 0.0f, height, 0.0f },   // centro del fondo del cilindro
-      studDiameter / 2.0f,          // raggio base
-      studDiameter / 2.0f,          // raggio top (cilindro dritto)
-      studHeight,                 // altezza
-      32,                         // segmenti
-      fillColor
-    );
-    /*DrawCylinderSilhouette(
-      { 0.0f, height, 0.0f },
-      studDiameter / 2.0f,
-      studHeight,
-      camera,
-      BLACK);*/
+    if (false)
+    {
 
-    DrawCylinderWires(
-      { 0.0f, height, 0.0f },
-      studDiameter / 2.0f,
-      studDiameter / 2.0f,
-      studHeight,
-      32,
-      strokeColor
-    );
+      BeginMode3D(camera);
+
+      // Base cubo
+      DrawCube(
+        { 0.0f, height / 2.0f, 0.0f }, // centro a met� altezza
+        side, height, side,
+        fillColor
+      );
+      DrawCubeWires(
+        { 0.0f, height / 2.0f, 0.0f },
+        side, height, side,
+        strokeColor
+      );
+
+      // Stud cilindrico
+      DrawCylinder(
+        { 0.0f, height, 0.0f },   // centro del fondo del cilindro
+        studDiameter / 2.0f,          // raggio base
+        studDiameter / 2.0f,          // raggio top (cilindro dritto)
+        studHeight,                 // altezza
+        32,                         // segmenti
+        fillColor
+      );
+      /*DrawCylinderSilhouette(
+        { 0.0f, height, 0.0f },
+        studDiameter / 2.0f,
+        studHeight,
+        camera,
+        BLACK);*/
+
+      DrawCylinderWires(
+        { 0.0f, height, 0.0f },
+        studDiameter / 2.0f,
+        studDiameter / 2.0f,
+        studHeight,
+        32,
+        strokeColor
+      );
+    }
 
     EndMode3D();
-
-    DrawText("Muovi la camera con mouse", 10, 10, 20, DARKGRAY);
-
     EndDrawing();
   }
 

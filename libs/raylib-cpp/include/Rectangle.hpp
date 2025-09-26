@@ -35,6 +35,8 @@ public:
 
     ::Vector4 ToVector4() { return {x, y, width, height}; }
 
+    raylib::Vector2 Origin() const { return raylib::Vector2(x, y); }
+
     operator ::Vector4() const { return {x, y, width, height}; }
 
     /**
