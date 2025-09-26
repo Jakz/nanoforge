@@ -31,12 +31,15 @@ include_directories(${LIBS_DIR}/raylib/include)
 include_directories(${LIBS_DIR}/raylib-cpp/include)
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-add_executable(procedurality
-  src/main.cpp
+# set SOURCE_FILES to all .cpp files in src directory
+file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/src/*.cpp)
+
+add_executable(nanoforge
+  ${SOURCE_FILES}
 )
 
 if(APPLE)
-  target_link_libraries(procedurality PRIVATE 
+  target_link_libraries(nanoforge PRIVATE
     ${LIBS_DIR}/raylib/lib/macos/libraylib.a
     "-framework Cocoa"
     "-framework OpenGL"

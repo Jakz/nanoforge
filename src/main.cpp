@@ -1,6 +1,6 @@
-#include "imgui.h"
+//#include "imgui.h"
 #include "raylib.hpp"
-#include "rlImGui.h"
+//#include "rlImGui.h"
 #include "Matrix.hpp"
 #include "Window.hpp"
 #include "Mesh.hpp"
@@ -55,19 +55,16 @@ void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camer
 auto vertShader = R"(
 #version 330
 
-// Attributi standard di raylib
 in vec3 vertexPosition;
 in vec3 vertexNormal;
-
-attribute mat4 instanceTransform;
+in mat4 instanceTransform;
 
 uniform mat4 mvp;
-uniform mat4 matModel;
 
 out vec3 vNormalWorld;
 
 void main() {
-    vNormalWorld = normalize((matModel * vec4(vertexNormal, 0.0)).xyz);
+    vNormalWorld = normalize((instanceTransform * vec4(vertexNormal, 0.0)).xyz);
     gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
 }
 )";
@@ -234,7 +231,8 @@ void Data::init()
 
   shaders.flatShading = raylib::Shader::LoadFromMemory(vertShader, fragShader);
   shaders.flatShading.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading.GetLocation("mvp");
-  shaders.flatShading.locs[SHADER_LOC_MATRIX_MODEL] = shaders.flatShading.GetLocation("matModel");
+  shaders.flatShading.locs[SHADER_LOC_MATRIX_MODEL] = shaders.flatShading.GetLocation("instanceTransform");
+
 
   materials.flatMaterial.shader = shaders.flatShading;
 }
@@ -521,7 +519,7 @@ int main(int arg, char* argv[])
   data.shaders.flatShading.SetValue(locRight, &right, SHADER_UNIFORM_VEC3);
   data.shaders.flatShading.SetValue(locThr, &thr, SHADER_UNIFORM_FLOAT);
 
-  rlImGuiSetup(true);
+  //rlImGuiSetup(true);
 
   SetTargetFPS(60);
 
