@@ -27,6 +27,7 @@
     <ClInclude Include="..\..\src\model\piece.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\models\colors.yml" />
     <None Include="..\..\models\test.yml" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

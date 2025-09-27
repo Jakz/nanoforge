@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include "defines.h"
 
 using layer_index_t = int32_t;
 using coord_t = int32_t;
+using ident_t = std::string;
 
 struct coord2d_t
 {

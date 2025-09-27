@@ -26,6 +26,9 @@
 #define LOG(msg, ...)   printf("[nanoforge] " msg "\n", ##__VA_ARGS__)
 
 
+#define SHADER_LOC_VERTEX_INSTANCE_TX (SHADER_LOC_BONE_MATRICES + 1)
+#define SHADER_LOC_COLOR_SHADE (SHADER_LOC_VERTEX_INSTANCE_TX + 4)
+
 void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camera3D& cam, Color col) {
   // Direzione di vista proiettata sul piano XZ
   Vector3 v = { cam.position.x - center.x, 0.0f, cam.position.z - center.z };
@@ -60,15 +63,18 @@ auto vertShader = R"(
 layout(location=0) in vec3 vertexPosition;
 layout(location=1) in vec3 vertexNormal;
 layout(location=2) in mat4 instanceTransform;
+layout(location=6) in mat4 colorShades;
 
 uniform mat4 mvp;
 
 out vec3 vNormalWorld;
+flat out mat4 vColorShades;
 
 void main()
 {
   mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
   vNormalWorld = normalize(normalMatrix * vertexNormal);
+  vColorShades = colorShades;
 
   gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
 }
@@ -78,6 +84,7 @@ auto fragShader = R"(
 #version 330
 
 in vec3 vNormalWorld;
+flat in mat4 vColorShades;
 
 uniform vec3 colorUp;     // colore per facce "verso l'alto"
 uniform vec3 colorRight;   // colore per tutte le altre
@@ -91,24 +98,14 @@ void main()
   float isUp = step(yThreshold, vNormalWorld.y);   // 1 se Y>=soglia, altrimenti 0
   if (isUp > 0.5)
   {
-    fragColor = vec4(colorUp, 1.0);
+    fragColor = vColorShades[0];
   }
   else
   {      
-    vec3 col = (vNormalWorld.x > 0.0) ? colorRight : colorLeft;
-    fragColor = vec4(col, 1.0);
+    fragColor = (vNormalWorld.x > 0.0) ? vColorShades[2] : vColorShades[1];
   }
 }
 )";
-
-
-
-nb::PieceColor lime = nb::PieceColor({
-  raylib::Color( 164, 219, 15, 255 ),
-  raylib::Color( 147, 205, 14, 255 ),
-  raylib::Color( 112, 173, 11, 255 ),
-  raylib::Color( 107, 166, 11, 255 )
-});
 
 // Replica la trasform di DrawModel: T(pos) * R(rot) * S(scale) * model.transform
 static inline Matrix MakeDrawTransform(Vector3 pos, float scale, Matrix rot, const raylib::Matrix& modelMatrix) {
@@ -198,6 +195,26 @@ constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
 constexpr float studDiameter = 2.5f;
 
+#include <filesystem>
+#include <fstream>
+
+struct files
+{
+  static std::string read_as_string(const std::filesystem::path& path)
+  {
+    auto length = std::filesystem::file_size(path);
+
+    std::ifstream in(path, std::ios::binary);
+
+    std::string yaml;
+    yaml.resize(length);
+    in.read(yaml.data(), yaml.length());
+    in.close();
+
+    return yaml;
+  }
+};
+
 struct Data
 {
   struct Constants
@@ -224,6 +241,12 @@ struct Data
     raylib::Mesh stud;
   } meshes;
 
+  struct Colors : public std::unordered_map<ident_t, nb::PieceColor>
+  {
+    const nb::PieceColor* lime;
+    const nb::PieceColor* white;
+  } colors;
+
   void init();
   void deinit();
 };
@@ -235,10 +258,29 @@ void Data::init()
 
   shaders.flatShading = raylib::Shader::LoadFromMemory(vertShader, fragShader);
   shaders.flatShading.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading.GetLocation("mvp");
-  shaders.flatShading.locs[SHADER_LOC_MATRIX_MODEL] = shaders.flatShading.GetLocationAttrib("instanceTransform");
-
+  shaders.flatShading.locs[SHADER_LOC_VERTEX_INSTANCE_TX] = shaders.flatShading.GetLocationAttrib("instanceTransform");
+  shaders.flatShading.locs[SHADER_LOC_COLOR_SHADE] = shaders.flatShading.GetLocationAttrib("colorShades");
 
   materials.flatMaterial.shader = shaders.flatShading;
+
+  /* load colors from ../../models/colors.yml */
+  auto node = fkyaml::node::deserialize(files::read_as_string("../../models/colors.yml"));
+  for (const auto& cc : node["colors"].as_seq())
+  {
+    ident_t id = cc["ident"].as_str();
+    std::array<raylib::Color, 4> cols;
+
+    for (size_t i = 0; i < 4; ++i)
+    {
+      const auto& col = cc["data"][i];
+      cols[i] = raylib::Color(col[0].as_int(), col[1].as_int(), col[2].as_int(), col[3].as_int());
+    }
+
+    colors[id] = nb::PieceColor(cols);
+  }
+
+  colors.lime = &colors["lime"];
+  colors.white = &colors["white"];
 }
 
 void Data::deinit()
@@ -251,21 +293,28 @@ void Data::deinit()
 Data data;
 
 #include <optional>
+#include <unordered_set>
 
 class InputHandler
 {
   enum class MouseButton { Left = 0, Middle, Right };
   
+  std::unordered_set<int> _keyState;
   std::array<bool, 3> _mouseState;
   std::optional<coord3d_t> _hover;
 
   nb::Model* model;
+
+  void handleKeystate();
 
 public:
   InputHandler() : _mouseState({ false, false, false }) { }
 
   void mouseDown(MouseButton button);
   void mouseUp(MouseButton button);
+
+  void keyDown(int key);
+  void keyUp(int key);
 
   void handle(nb::Model* model);
 
@@ -276,9 +325,16 @@ namespace gfx
 {
   class Renderer
   {
+  public:
+    struct InstanceData
+    {
+      Matrix matrix;
+      const nb::PieceColor* color;
+    };
+
   protected:
     raylib::Camera3D _camera;
-    std::vector<Matrix> _studTransforms;
+    std::vector<InstanceData> _studData;
 
   public:
     static constexpr int EDGE_COMPLEXITY = 6;
@@ -321,8 +377,8 @@ namespace gfx
         {
           vec2 pos = vec2(base.x + piece.x() * cellSize.width, base.y + piece.y() * cellSize.height);
           vec2 size = vec2(piece.width() * cellSize.width, piece.height() * cellSize.height);
-          DrawRectangleV(pos, size, piece.color().top().Fade(0.5f));
-          DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 1.0f, piece.color().edge().Fade(0.8f));
+          DrawRectangleV(pos, size, piece.color()->top().Fade(0.5f));
+          DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 1.0f, piece.color()->edge().Fade(0.8f));
         }
       }
       
@@ -332,8 +388,8 @@ namespace gfx
         vec2 pos = vec2(base.x + piece.x() * cellSize.width, base.y + piece.y() * cellSize.height);
         vec2 size = vec2(piece.width() * cellSize.width, piece.height() * cellSize.height);
 
-        DrawRectangleV(pos, size, piece.color().top());
-        DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 2.0f, piece.color().edge());
+        DrawRectangleV(pos, size, piece.color()->top());
+        DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 2.0f, piece.color()->edge());
       }
 
 
@@ -341,9 +397,12 @@ namespace gfx
   };
 }
 
+void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const gfx::Renderer::InstanceData* transforms, int instances);
+
+
 void gfx::Renderer::render(const nb::Model* model)
 {
-  _studTransforms.clear();
+  _studData.clear();
   renderModel(model);
   renderStuds();
 }
@@ -372,7 +431,7 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
   /* compute the matrix for the layer */
   raylib::Matrix layerTransform = raylib::Matrix::Translate(0.0f, layer->index() * height, 0.0f);
 
-  std::vector<Matrix> transforms(layer->pieces().size());
+  std::vector<InstanceData> transforms(layer->pieces().size());
 
   size_t i = 0;
   for (const nb::Piece& piece : layer->pieces())
@@ -383,35 +442,35 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
     for (int y = 0; y < piece.height(); ++y)
       for (int x = 0; x < piece.width(); ++x)
       {
-        _studTransforms.push_back(layerTransform * raylib::Matrix::Translate((piece.x() + x + 0.5f) * side, height, (piece.y() + y + 0.5f) * side));
+        _studData.push_back({ layerTransform * raylib::Matrix::Translate((piece.x() + x + 0.5f) * side, height, (piece.y() + y + 0.5f) * side), piece.color() });
 
         raylib::Vector3 center = raylib::Vector3::Zero();
-        center = center.Transform(_studTransforms.back());
+        center = center.Transform(_studData.back().matrix);
 
-        DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, lime.edge(), MatrixIdentity(), _camera);
+        DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece.color()->edge(), MatrixIdentity(), _camera);
       }
 
 
     pieceTransform = raylib::Matrix::Scale(piece.width(), 1.0f, piece.height()) * pieceTransform;
  
     /* combine layer and piece matrix */
-    transforms[i] = layerTransform * pieceTransform;
+    transforms[i] = { layerTransform * pieceTransform, piece.color() };
     ++i;
 
-    DrawCubeEdgesFast(side, height, side, transforms[i - 1], lime.edge());
+    DrawCubeEdgesFast(side, height, side, transforms[i - 1].matrix, piece.color()->edge());
   }
 
-  data.meshes.cube.Draw(data.materials.flatMaterial, transforms.data(), transforms.size());
+  MyDrawMeshInstanced(data.meshes.cube, data.materials.flatMaterial, transforms.data(), transforms.size());
 }
 
 void gfx::Renderer::renderStuds()
 {
-  if (_studTransforms.empty())
+  if (_studData.empty())
     return;
 
-  data.meshes.stud.Draw(data.materials.flatMaterial, _studTransforms.data(), _studTransforms.size());
+  MyDrawMeshInstanced(data.meshes.stud, data.materials.flatMaterial, _studData.data(), _studData.size());
 
-  _studTransforms.clear();
+  _studData.clear();
 }
 
 void gfx::Renderer::renderModel(const nb::Model* model)
@@ -422,6 +481,31 @@ void gfx::Renderer::renderModel(const nb::Model* model)
   renderLayerGrid3d(0, size2d_t(MOCK_LAYER_SIZE, MOCK_LAYER_SIZE));
 }
 
+void InputHandler::handleKeystate()
+{
+  /* use GetKeyState to insert pressed keys into _keyState or remove them if they're not pressed anymore */
+  std::unordered_set<int> newState;
+  int c;
+  while ((c = GetKeyPressed()))
+    newState.insert(c);
+
+  /* trigger events */
+  for (int key : _keyState)
+  {
+    if (newState.find(key) == newState.end())
+      keyUp(key);
+  }
+
+  for (int key : newState)
+  {
+    if (_keyState.find(key) == _keyState.end())
+      keyDown(key);
+  }
+
+  _keyState = newState;
+}
+
+
 static size2d_t LAYER2D_CELL_SIZE = size2d_t(16.0f, 16.0f);
 static vec2 LAYER2D_BASE = vec2(10.0f, 10.0f);
 static float LAYER2D_SPACING = 10.0f;
@@ -429,6 +513,8 @@ static float LAYER2D_SPACING = 10.0f;
 void InputHandler::handle(nb::Model* model)
 {
   this->model = model;
+
+  handleKeystate();
 
   vec2 position = GetMousePosition();
 
@@ -483,17 +569,30 @@ void InputHandler::mouseUp(MouseButton button)
 
 }
 
+void InputHandler::keyDown(int key)
+{
+  if (key == KEY_W)
+  {
+    printf("down!");
+  }
+}
+
+void InputHandler::keyUp(int key)
+{
+
+}
+
 
 struct Context
 {
   nb::Model model;
   gfx::Renderer renderer;
   InputHandler input;
+  nb::Piece brush;
 };
 
 
-#include <filesystem>
-#include <fstream>
+
 
 class Loader
 {
@@ -537,8 +636,24 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
       int z = p["position"][0].as_int();
       int x = p["position"][1].as_int();
       int y = p["position"][2].as_int();
+      const nb::PieceColor* color = data.colors.white;
 
-      model.addPiece(z, nb::Piece(coord2d_t(x, y), &lime, nb::PieceOrientation::North));
+      size2d_t size = size2d_t(1, 1);
+
+      if (p["size"].is_sequence())
+      {
+        size.width = p["size"][0].as_int();
+        size.height = p["size"][1].as_int();
+      }
+
+      if (p["color"].is_string())
+      {
+        auto it = data.colors.find(p["color"].as_str());
+        if (it != data.colors.end())
+          color = &it->second;
+      }
+
+      model.addPiece(z, nb::Piece(coord2d_t(x, y), color, nb::PieceOrientation::North, size));
     }
 
     return model;
@@ -551,11 +666,6 @@ int main(int arg, char* argv[])
 {  
   Context context;
 
-  Loader loader;
-  auto result = loader.load("../../models/test.yml");
-  if (result)
-    context.model = std::move(*result);
-
   auto& model = context.model;
   gfx::Renderer& renderer = context.renderer;
   InputHandler& input = context.input;
@@ -565,6 +675,13 @@ int main(int arg, char* argv[])
   InitWindow(1280, 800, "Nanoforge v0.0.1a");
 
   data.init();
+
+  Loader loader;
+  auto result = loader.load("../../models/test.yml");
+  if (result)
+    context.model = std::move(*result);
+
+  context.brush = nb::Piece(coord2d_t(0, 0), data.colors.lime, nb::PieceOrientation::North, size2d_t(1, 1));
 
   renderer.camera().target = { gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f,  0.0f,  gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f };
   renderer.camera().position = { renderer.camera().target.x * 4.0f, renderer.camera().target.x * 2.0f, renderer.camera().target.y * 4.0f };
@@ -580,9 +697,9 @@ int main(int arg, char* argv[])
 
   float thr = 0.3f; 
 
-  auto top = lime.topV();
-  auto left = lime.leftV();
-  auto right = lime.rightV();
+  auto top = data.colors.lime->topV();
+  auto left = data.colors.lime->leftV();
+  auto right = data.colors.lime->rightV();
   data.shaders.flatShading.SetValue(locUp, &top, SHADER_UNIFORM_VEC3);
   data.shaders.flatShading.SetValue(locLeft, &left, SHADER_UNIFORM_VEC3);
   data.shaders.flatShading.SetValue(locRight, &right, SHADER_UNIFORM_VEC3);
@@ -648,4 +765,191 @@ int main(int arg, char* argv[])
 
   CloseWindow();
   return 0;
+}
+
+
+void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const gfx::Renderer::InstanceData* data, int instances)
+{
+  constexpr size_t MAX_MATERIAL_MAPS = 4;
+
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+  // Instancing required variables
+  float16* instanceTransforms = NULL;
+  unsigned int instancesVboId = 0;
+  unsigned int colorsVboId = 0;
+
+  // Bind shader program
+  rlEnableShader(material.shader.id);
+
+  // Send required data to shader (matrices, values)
+  //-----------------------------------------------------
+  // Upload to shader material.colDiffuse
+  if (material.shader.locs[SHADER_LOC_COLOR_DIFFUSE] != -1)
+  {
+    float values[4] = {
+        (float)material.maps[MATERIAL_MAP_DIFFUSE].color.r / 255.0f,
+        (float)material.maps[MATERIAL_MAP_DIFFUSE].color.g / 255.0f,
+        (float)material.maps[MATERIAL_MAP_DIFFUSE].color.b / 255.0f,
+        (float)material.maps[MATERIAL_MAP_DIFFUSE].color.a / 255.0f
+    };
+
+    rlSetUniform(material.shader.locs[SHADER_LOC_COLOR_DIFFUSE], values, SHADER_UNIFORM_VEC4, 1);
+  }
+
+  // Upload to shader material.colSpecular (if location available)
+  if (material.shader.locs[SHADER_LOC_COLOR_SPECULAR] != -1)
+  {
+    float values[4] = {
+        (float)material.maps[SHADER_LOC_COLOR_SPECULAR].color.r / 255.0f,
+        (float)material.maps[SHADER_LOC_COLOR_SPECULAR].color.g / 255.0f,
+        (float)material.maps[SHADER_LOC_COLOR_SPECULAR].color.b / 255.0f,
+        (float)material.maps[SHADER_LOC_COLOR_SPECULAR].color.a / 255.0f
+    };
+
+    rlSetUniform(material.shader.locs[SHADER_LOC_COLOR_SPECULAR], values, SHADER_UNIFORM_VEC4, 1);
+  }
+
+  Matrix matModel = MatrixIdentity();
+  Matrix matView = rlGetMatrixModelview();
+  Matrix matModelView = MatrixIdentity();
+  Matrix matProjection = rlGetMatrixProjection();
+
+  // Upload view and projection matrices (if locations available)
+  if (material.shader.locs[SHADER_LOC_MATRIX_VIEW] != -1)
+    rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_VIEW], matView);
+
+  if (material.shader.locs[SHADER_LOC_MATRIX_PROJECTION] != -1)
+    rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_PROJECTION], matProjection);
+
+  // Create instances buffer
+  instanceTransforms = (float16*)RL_MALLOC(instances * sizeof(float16));
+
+  // Fill buffer with instances transformations as float16 arrays
+  for (int i = 0; i < instances; i++)
+    instanceTransforms[i] = MatrixToFloatV(data[i].matrix);
+
+  // Enable mesh VAO to attach new buffer
+  rlEnableVertexArray(mesh.vaoId);
+
+  // This could alternatively use a static VBO and either glMapBuffer() or glBufferSubData()
+  // It isn't clear which would be reliably faster in all cases and on all platforms,
+  // anecdotally glMapBuffer() seems very slow (syncs) while glBufferSubData() seems
+  // no faster, since we're transferring all the transform matrices anyway
+  instancesVboId = rlLoadVertexBuffer(instanceTransforms, instances * sizeof(float16), false);
+
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    auto baseLocation = material.shader.locs[SHADER_LOC_VERTEX_INSTANCE_TX];
+    rlEnableVertexAttribute(baseLocation + i);
+    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
+    rlSetVertexAttributeDivisor(baseLocation + i, 1);
+  }
+
+  float16* colorShades = (float16*)RL_MALLOC(instances * sizeof(float16));
+  for (int i = 0; i < instances; ++i)
+  {
+    for (int j = 0; j < 4; ++j)
+    {
+      colorShades[i].v[j * 4 + 0] = data[i].color->colors[j].r / 255.0f;
+      colorShades[i].v[j * 4 + 1] = data[i].color->colors[j].g / 255.0f;
+      colorShades[i].v[j * 4 + 2] = data[i].color->colors[j].b / 255.0f;
+      colorShades[i].v[j * 4 + 3] = data[i].color->colors[j].a / 255.0f;
+    }
+  }
+
+  colorsVboId = rlLoadVertexBuffer(colorShades, instances * sizeof(float16), false);
+
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    auto baseLocation = material.shader.locs[SHADER_LOC_COLOR_SHADE];
+    rlEnableVertexAttribute(baseLocation + i);
+    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
+    rlSetVertexAttributeDivisor(baseLocation + i, 1);
+  }
+
+  rlDisableVertexBuffer();
+  rlDisableVertexArray();
+
+  // Accumulate internal matrix transform (push/pop) and view matrix
+  // NOTE: In this case, model instance transformation must be computed in the shader
+  matModelView = MatrixMultiply(rlGetMatrixTransform(), matView);
+
+  // Upload model normal matrix (if locations available)
+  if (material.shader.locs[SHADER_LOC_MATRIX_NORMAL] != -1)
+    rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_NORMAL], MatrixTranspose(MatrixInvert(matModel)));
+
+  // Bind active texture maps (if available)
+  for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
+  {
+    if (material.maps[i].texture.id > 0)
+    {
+      // Select current shader texture slot
+      rlActiveTextureSlot(i);
+
+      // Enable texture for active slot
+      if ((i == MATERIAL_MAP_IRRADIANCE) ||
+        (i == MATERIAL_MAP_PREFILTER) ||
+        (i == MATERIAL_MAP_CUBEMAP)) rlEnableTextureCubemap(material.maps[i].texture.id);
+      else rlEnableTexture(material.maps[i].texture.id);
+
+      rlSetUniform(material.shader.locs[SHADER_LOC_MAP_DIFFUSE + i], &i, SHADER_UNIFORM_INT, 1);
+    }
+  }
+
+  // Try binding vertex array objects (VAO)
+  // or use VBOs if not possible
+  if (!rlEnableVertexArray(mesh.vaoId))
+  {
+    rlEnableVertexBuffer(mesh.vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION]);
+    rlSetVertexAttribute(material.shader.locs[SHADER_LOC_VERTEX_POSITION], 3, RL_FLOAT, 0, 0, 0);
+    rlEnableVertexAttribute(material.shader.locs[SHADER_LOC_VERTEX_POSITION]);
+
+    if (mesh.indices != NULL)
+      rlEnableVertexBufferElement(mesh.vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_INDICES]);
+  }
+
+  // Calculate model-view-projection matrix (MVP)
+  Matrix matModelViewProjection = MatrixIdentity();
+  matModelViewProjection = MatrixMultiply(matModelView, matProjection);
+
+  // Send combined model-view-projection matrix to shader
+  rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_MVP], matModelViewProjection);
+
+  // Draw mesh instanced
+  if (mesh.indices != NULL)
+    rlDrawVertexArrayElementsInstanced(0, mesh.triangleCount * 3, 0, instances);
+  else
+    rlDrawVertexArrayInstanced(0, mesh.vertexCount, instances);
+
+  // Unbind all bound texture maps
+  for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
+  {
+    if (material.maps[i].texture.id > 0)
+    {
+      // Select current shader texture slot
+      rlActiveTextureSlot(i);
+
+      // Disable texture for active slot
+      if ((i == MATERIAL_MAP_IRRADIANCE) ||
+        (i == MATERIAL_MAP_PREFILTER) ||
+        (i == MATERIAL_MAP_CUBEMAP)) rlDisableTextureCubemap();
+      else rlDisableTexture();
+    }
+  }
+
+  // Disable all possible vertex array objects (or VBOs)
+  rlDisableVertexArray();
+  rlDisableVertexBuffer();
+  rlDisableVertexBufferElement();
+
+  // Disable shader program
+  rlDisableShader();
+
+  // Remove instance transforms buffer
+  rlUnloadVertexBuffer(instancesVboId);
+  RL_FREE(instanceTransforms);
+
+  rlUnloadVertexBuffer(colorsVboId);
+  RL_FREE(colorShades);
+#endif
 }

@@ -6,8 +6,8 @@ Piece* nb::Layer::piece(const coord2d_t& coord) const
 {
   for (const auto& p : _pieces)
   {
-    if (p.x() >= coord.x && p.x() < coord.x + p.width() &&
-      p.y() >= coord.y && p.y() < coord.y + p.height())
+    if (coord.x >= p.x() && coord.x < p.x() + p.width() &&  
+       coord.y >= p.y() && coord.y < p.y() + p.height())
       return const_cast<Piece*>(&p);
   }
   return nullptr;

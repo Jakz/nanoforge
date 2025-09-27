@@ -18,6 +18,7 @@ namespace nb
   {
     std::array<raylib::Color, 4> colors;
 
+    PieceColor() { }
     PieceColor(const std::array<raylib::Color, 4>& cols) : colors(cols) { }
 
     const raylib::Color& top() const { return colors[0]; }
@@ -34,19 +35,20 @@ namespace nb
 
   class Piece
   {
-    PieceColor _color;
+    const PieceColor* _color;
     PieceOrientation _orientation;
     coord2d_t _coord;
     size2d_t _size;
 
   public:
+    Piece() : _coord(0, 0), _color(nullptr), _orientation(PieceOrientation::North), _size(1, 1) { }
     Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, size2d_t size = size2d_t(1, 1)) :
-      _coord(coord), _color(*color), _orientation(orientation), _size(size) { }
+      _coord(coord), _color(color), _orientation(orientation), _size(size) { }
 
     coord2d_t coord() const { return _coord; }
     coord_t x() const { return _coord.x; }
     coord_t y() const { return _coord.y; }
-    const PieceColor& color() const { return _color; }
+    const PieceColor* color() const { return _color; }
 
     int32_t width() const { return _size.width; }
     int32_t height() const { return _size.height; }

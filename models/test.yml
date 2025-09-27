@@ -3,9 +3,20 @@ info:
 pieces:
   - id: piece1
     type: square1x1
-    color: red
+    color: white
     position: [0, 0, 0]
   - id: piece2
     type: square1x1
-    color: blue
-    position: [1, 1, 0]
+    color: brown
+    size: [1, 2]
+    position: [0, 0, 1]
+  - id: piece2
+    type: square1x1
+    color: lime
+    size: [3, 1]
+    position: [0, 1, 0]
+  - id: piece2
+    type: square1x1
+    color: yellow
+    size: [3, 1]
+    position: [1, 0, 0]
