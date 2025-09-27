@@ -46,9 +46,18 @@ if(APPLE)
     "-framework IOKit"
   )
 
+  set(LLVM_HOME "/opt/homebrew/opt/llvm")
 
+  target_compile_options(nanoforge PRIVATE -stdlib=libc++)
+  #target_include_directories(nanoforge PRIVATE "${LLVM_HOME}/include/c++/v1")
 
-  
+  #target_link_options(nanoforge PRIVATE
+  #  -stdlib=libc++
+  #  -Wl,-rpath,"${LLVM_HOME}/lib/c++"
+  #  -Wl,-rpath,"${LLVM_HOME}/lib/unwind"
+  #  -Wl,-rpath,"${LLVM_HOME}/lib"
+  #)
+
 #  add_custom_command(TARGET cli POST_BUILD
 #    COMMAND ${CMAKE_COMMAND} -E copy
 #    ${LIBS_DIR}/blterm/lib/macos/libBearLibTerminal.dylib
