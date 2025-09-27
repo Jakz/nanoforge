@@ -23,6 +23,7 @@
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
 
+#define LOG(msg, ...)   printf("[nanoforge] " msg "\n", ##__VA_ARGS__)
 
 
 void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camera3D& cam, Color col) {
@@ -492,50 +493,72 @@ struct Context
 
 
 #include <filesystem>
+#include <fstream>
 
 class Loader
 {
   public:
-    bool load(const std::filesystem::path& filename, nb::Model& model);
+    std::optional<nb::Model> load(const std::filesystem::path& filename);
 };
 
-bool Loader::load(const std::filesystem::path& filename, nb::Model& model)
+std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
 {
-  /* read filename to string by using C api */
-  FILE* file = fopen(filename.c_str(), "rb");
-  
   /* get file length through std::filesystem api */
-  auto length = std::filesystem::file_size(filename);
+  auto length = std::filesystem::file_size(file);
+
+  std::ifstream in(file, std::ios::binary);
+
   std::string yaml;
   yaml.resize(length);
-  fread(yaml.data(), 1, length, file);
-  fclose(file);
-  
+  in.read(yaml.data(), yaml.length());
+  in.close();
+
   auto node = fkyaml::node::deserialize(yaml);
 
   if (node.is_mapping())
   {
+    nb::Model model;
+
+    /* compute layers count */
+    int maxZ = 0;
+    for (const auto& p : node["pieces"].as_seq())
+    {
+      int z = p["position"][0].as_int();
+      maxZ = std::max(maxZ, z);
+    }
     
+    LOG("Loading model %s... (%d pieces, %d layers)", node["info"]["name"].as_str().c_str(), node["pieces"].as_seq().size(), maxZ);
+
+    model.prepareLayers(maxZ + 1);
+
+    /* load pieces */
+    for (const auto& p : node["pieces"].as_seq())
+    {
+      int z = p["position"][0].as_int();
+      int x = p["position"][1].as_int();
+      int y = p["position"][2].as_int();
+
+      model.addPiece(z, nb::Piece(coord2d_t(x, y), &lime, nb::PieceOrientation::North));
+    }
+
+    return model;
   }
 
-  return true;
+  return std::optional<nb::Model>();
 }
 
 int main(int arg, char* argv[])
-{
+{  
   Context context;
+
+  Loader loader;
+  auto result = loader.load("../../models/test.yml");
+  if (result)
+    context.model = std::move(*result);
 
   auto& model = context.model;
   gfx::Renderer& renderer = context.renderer;
   InputHandler& input = context.input;
-
-  model.addLayer(0);
-  model.layer(0)->add(nb::Piece({ 0, 0 }, &lime, nb::PieceOrientation::North));
-  model.layer(0)->add(nb::Piece({ 1, 1 }, &lime, nb::PieceOrientation::North));
-  model.layer(0)->add(nb::Piece({ 2, 2 }, &lime, nb::PieceOrientation::North, size2d_t(3, 2)));
-
-  model.addLayer(1);
-  model.layer(1)->add(nb::Piece({ 3, 3 }, &lime, nb::PieceOrientation::North));
 
   SetConfigFlags(FLAG_MSAA_4X_HINT);
 

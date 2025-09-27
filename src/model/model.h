@@ -18,6 +18,7 @@ namespace nb
     Layer* _next;
 
   public:
+    Layer(layer_index_t index) : _index(index), _prev(nullptr), _next(nullptr) { }
     Layer() : _index(0), _prev(nullptr), _next(nullptr) { }
 
     void add(const Piece& piece) { _pieces.push_back(piece); }
@@ -40,6 +41,8 @@ namespace nb
 
   public:
     void addLayer(layer_index_t index);
+    void prepareLayers(layer_index_t count);
+    void addPiece(layer_index_t layerIndex, const Piece& piece);
     
     Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
     const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }

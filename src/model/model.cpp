@@ -43,6 +43,27 @@ void nb::Model::addLayer(layer_index_t index)
   _layers.insert(_layers.begin() + index, std::move(newLayer));
 }
 
+void nb::Model::prepareLayers(layer_index_t count)
+{
+  _layers.resize(count);
+  for (layer_index_t i = 0; i < count; ++i)
+    _layers[i] = std::make_unique<Layer>(i);
+
+  for (size_t i = 0; i < _layers.size(); ++i)
+  {
+    auto current = _layers[i].get();
+    auto next = (i + 1 < _layers.size()) ? _layers[i + 1].get() : nullptr;
+    linkLayers(current, next);
+  }
+}
+
+void nb::Model::addPiece(layer_index_t layerIndex, const Piece& piece)
+{
+  auto* layer = this->layer(layerIndex);
+  if (layer)
+    layer->add(piece);
+}
+
 Piece* nb::Model::piece(const coord3d_t& coord) const
 {
   const Layer* layer = this->layer(coord.z);

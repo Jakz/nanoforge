@@ -30,6 +30,8 @@ namespace nb
     Vector3 rightV() const { return Vector3{ right().r / 255.0f, right().g / 255.0f, right().b / 255.0f }; }
   };
 
+  using piece_type_t = std::string;
+
   class Piece
   {
     PieceColor _color;

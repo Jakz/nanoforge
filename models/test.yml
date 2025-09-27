@@ -1,3 +1,5 @@
+info:
+  name: Test Model
 pieces:
   - id: piece1
     type: square1x1
@@ -6,4 +8,4 @@ pieces:
   - id: piece2
     type: square1x1
     color: blue
-    position: [0, 1, 0]
+    position: [1, 1, 0]
