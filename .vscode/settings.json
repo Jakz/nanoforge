@@ -40,4 +40,8 @@
   "workbench.colorCustomizations": {
     "editor.background": "#071733"
   },
+  "files.associations": {
+    "*.ls": "angelscript",
+    "memory": "cpp"
+  },
 }

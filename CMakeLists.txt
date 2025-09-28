@@ -36,6 +36,7 @@ file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
 add_executable(nanoforge
   ${SOURCE_FILES}
+  ${CMAKE_SOURCE_DIR}/src/renderer.cpp
 )
 
 if(APPLE)

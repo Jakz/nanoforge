@@ -1,0 +1,369 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		04F43B422E89439500AD23B8 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B3E2E89439400AD23B8 /* main.cpp */; };
+		04F43B432E89439500AD23B8 /* renderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B402E89439500AD23B8 /* renderer.cpp */; };
+		04F43B4C2E8943BF00AD23B8 /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B482E8943BF00AD23B8 /* model.cpp */; };
+		04F43B4F2E89457C00AD23B8 /* libraylib.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B4E2E89457C00AD23B8 /* libraylib.a */; };
+		04F43B512E894C4200AD23B8 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B502E894C4200AD23B8 /* OpenGL.framework */; };
+		04F43B532E894C8700AD23B8 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B522E894C8700AD23B8 /* CoreFoundation.framework */; };
+		04F43B552E894CDE00AD23B8 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B542E894CDE00AD23B8 /* Cocoa.framework */; };
+		04F43B572E894CE700AD23B8 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B562E894CE700AD23B8 /* CoreVideo.framework */; };
+		04F43B592E894CF500AD23B8 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B582E894CF500AD23B8 /* CoreGraphics.framework */; };
+		04F43B5B2E894D0A00AD23B8 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B5A2E894D0A00AD23B8 /* Carbon.framework */; };
+		04F43B5D2E894D1B00AD23B8 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B5C2E894D1B00AD23B8 /* IOKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		04F43B312E89434600AD23B8 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		04F43B332E89434600AD23B8 /* nanoforge */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = nanoforge; sourceTree = BUILT_PRODUCTS_DIR; };
+		04F43B3E2E89439400AD23B8 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../src/main.cpp; sourceTree = "<group>"; };
+		04F43B3F2E89439400AD23B8 /* renderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = renderer.h; path = ../../src/renderer.h; sourceTree = "<group>"; };
+		04F43B402E89439500AD23B8 /* renderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = renderer.cpp; path = ../../src/renderer.cpp; sourceTree = "<group>"; };
+		04F43B412E89439500AD23B8 /* defines.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = defines.h; path = ../../src/defines.h; sourceTree = "<group>"; };
+		04F43B452E8943AA00AD23B8 /* node.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = node.hpp; path = ../../src/io/node.hpp; sourceTree = "<group>"; };
+		04F43B482E8943BF00AD23B8 /* model.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = model.cpp; path = ../../src/model/model.cpp; sourceTree = "<group>"; };
+		04F43B492E8943BF00AD23B8 /* model.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = model.h; path = ../../src/model/model.h; sourceTree = "<group>"; };
+		04F43B4A2E8943BF00AD23B8 /* piece.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = piece.h; path = ../../src/model/piece.h; sourceTree = "<group>"; };
+		04F43B4B2E8943BF00AD23B8 /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = common.h; path = ../../src/model/common.h; sourceTree = "<group>"; };
+		04F43B4E2E89457C00AD23B8 /* libraylib.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libraylib.a; path = ../../libs/raylib/lib/macos/libraylib.a; sourceTree = "<group>"; };
+		04F43B502E894C4200AD23B8 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		04F43B522E894C8700AD23B8 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		04F43B542E894CDE00AD23B8 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		04F43B562E894CE700AD23B8 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
+		04F43B582E894CF500AD23B8 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		04F43B5A2E894D0A00AD23B8 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
+		04F43B5C2E894D1B00AD23B8 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		04F43B302E89434600AD23B8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				04F43B5D2E894D1B00AD23B8 /* IOKit.framework in Frameworks */,
+				04F43B5B2E894D0A00AD23B8 /* Carbon.framework in Frameworks */,
+				04F43B592E894CF500AD23B8 /* CoreGraphics.framework in Frameworks */,
+				04F43B572E894CE700AD23B8 /* CoreVideo.framework in Frameworks */,
+				04F43B552E894CDE00AD23B8 /* Cocoa.framework in Frameworks */,
+				04F43B532E894C8700AD23B8 /* CoreFoundation.framework in Frameworks */,
+				04F43B512E894C4200AD23B8 /* OpenGL.framework in Frameworks */,
+				04F43B4F2E89457C00AD23B8 /* libraylib.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		04F43B2A2E89434600AD23B8 = {
+			isa = PBXGroup;
+			children = (
+				04F43B3D2E89435700AD23B8 /* src */,
+				04F43B342E89434600AD23B8 /* Products */,
+				04F43B4D2E89457C00AD23B8 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		04F43B342E89434600AD23B8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				04F43B332E89434600AD23B8 /* nanoforge */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		04F43B3D2E89435700AD23B8 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				04F43B472E8943B400AD23B8 /* model */,
+				04F43B442E89439B00AD23B8 /* io */,
+				04F43B412E89439500AD23B8 /* defines.h */,
+				04F43B3E2E89439400AD23B8 /* main.cpp */,
+				04F43B402E89439500AD23B8 /* renderer.cpp */,
+				04F43B3F2E89439400AD23B8 /* renderer.h */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		04F43B442E89439B00AD23B8 /* io */ = {
+			isa = PBXGroup;
+			children = (
+				04F43B452E8943AA00AD23B8 /* node.hpp */,
+			);
+			name = io;
+			sourceTree = "<group>";
+		};
+		04F43B472E8943B400AD23B8 /* model */ = {
+			isa = PBXGroup;
+			children = (
+				04F43B4B2E8943BF00AD23B8 /* common.h */,
+				04F43B482E8943BF00AD23B8 /* model.cpp */,
+				04F43B492E8943BF00AD23B8 /* model.h */,
+				04F43B4A2E8943BF00AD23B8 /* piece.h */,
+			);
+			name = model;
+			sourceTree = "<group>";
+		};
+		04F43B4D2E89457C00AD23B8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				04F43B5C2E894D1B00AD23B8 /* IOKit.framework */,
+				04F43B5A2E894D0A00AD23B8 /* Carbon.framework */,
+				04F43B582E894CF500AD23B8 /* CoreGraphics.framework */,
+				04F43B562E894CE700AD23B8 /* CoreVideo.framework */,
+				04F43B542E894CDE00AD23B8 /* Cocoa.framework */,
+				04F43B522E894C8700AD23B8 /* CoreFoundation.framework */,
+				04F43B502E894C4200AD23B8 /* OpenGL.framework */,
+				04F43B4E2E89457C00AD23B8 /* libraylib.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		04F43B322E89434600AD23B8 /* nanoforge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 04F43B3A2E89434600AD23B8 /* Build configuration list for PBXNativeTarget "nanoforge" */;
+			buildPhases = (
+				04F43B2F2E89434600AD23B8 /* Sources */,
+				04F43B302E89434600AD23B8 /* Frameworks */,
+				04F43B312E89434600AD23B8 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = nanoforge;
+			productName = nanoforge;
+			productReference = 04F43B332E89434600AD23B8 /* nanoforge */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		04F43B2B2E89434600AD23B8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1400;
+				TargetAttributes = {
+					04F43B322E89434600AD23B8 = {
+						CreatedOnToolsVersion = 14.0;
+					};
+				};
+			};
+			buildConfigurationList = 04F43B2E2E89434600AD23B8 /* Build configuration list for PBXProject "nanoforge" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 04F43B2A2E89434600AD23B8;
+			productRefGroup = 04F43B342E89434600AD23B8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				04F43B322E89434600AD23B8 /* nanoforge */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		04F43B2F2E89434600AD23B8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				04F43B432E89439500AD23B8 /* renderer.cpp in Sources */,
+				04F43B422E89439500AD23B8 /* main.cpp in Sources */,
+				04F43B4C2E8943BF00AD23B8 /* model.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		04F43B382E89434600AD23B8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"${PROJECT_DIR}/../../src",
+					"${PROJECT_DIR}/../../libs/raylib/include",
+					"${PROJECT_DIR}/../../libs/raylib-cpp/include",
+				);
+				LIBRARY_SEARCH_PATHS = /Users/jack/Documents/Dev/nanoforge/libs/raylib/lib/macos;
+				MACOSX_DEPLOYMENT_TARGET = 12.3;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		04F43B392E89434600AD23B8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"${PROJECT_DIR}/../../src",
+					"${PROJECT_DIR}/../../libs/raylib/include",
+					"${PROJECT_DIR}/../../libs/raylib-cpp/include",
+				);
+				LIBRARY_SEARCH_PATHS = /Users/jack/Documents/Dev/nanoforge/libs/raylib/lib/macos;
+				MACOSX_DEPLOYMENT_TARGET = 12.3;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		04F43B3B2E89434600AD23B8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = HA7T9ZT524;
+				ENABLE_HARDENED_RUNTIME = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		04F43B3C2E89434600AD23B8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = HA7T9ZT524;
+				ENABLE_HARDENED_RUNTIME = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		04F43B2E2E89434600AD23B8 /* Build configuration list for PBXProject "nanoforge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				04F43B382E89434600AD23B8 /* Debug */,
+				04F43B392E89434600AD23B8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		04F43B3A2E89434600AD23B8 /* Build configuration list for PBXNativeTarget "nanoforge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				04F43B3B2E89434600AD23B8 /* Debug */,
+				04F43B3C2E89434600AD23B8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 04F43B2B2E89434600AD23B8 /* Project object */;
+}
