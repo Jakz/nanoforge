@@ -30,10 +30,11 @@ namespace gfx
     std::vector<float16> _colorShadesData;
     std::vector<float16> _transformsData;
 
-    void setup();
     void update(const raylib::Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData);
 
   public:
+    void setup(int vaoID);
+    void release();
     void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const gfx::InstanceData* data, int instances);
   };
 
@@ -65,6 +66,8 @@ namespace gfx
     void renderStuds();
 
   public:
+    void init();
+
     void renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize);
   };
 }

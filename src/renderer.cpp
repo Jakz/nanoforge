@@ -90,6 +90,12 @@ constexpr float studDiameter = 2.5f;
 
 void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const gfx::InstanceData* transforms, int instances);
 
+void gfx::Renderer::init()
+{
+  _cubeBatch.setup(data.meshes.cube.vaoId);
+  _studBatch.setup(data.meshes.stud.vaoId);
+}
+
 void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize)
 {
   /* draw a thin black grid with half opacity over the pieces */
@@ -214,20 +220,21 @@ void gfx::Renderer::renderModel(const nb::Model* model)
   renderLayerGrid3d(0, size2d_t(MOCK_LAYER_SIZE, MOCK_LAYER_SIZE));
 }
 
+#include "glad/glad.h"
+
 void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const gfx::InstanceData* data, int instances)
 {
   constexpr size_t MAX_MATERIAL_MAPS = 4;
 
   // Instancing required variables
   float16* instanceTransforms = NULL;
-  unsigned int instancesVboId = 0;
-  unsigned int colorsVboId = 0;
 
   // Bind shader program
   rlEnableShader(material.shader.id);
 
   Matrix matModel = MatrixIdentity();
   Matrix matView = rlGetMatrixModelview();
+  Matrix matModelView = MatrixIdentity();
   Matrix matProjection = rlGetMatrixProjection();
 
   // Create instances buffer
@@ -237,10 +244,10 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
   for (int i = 0; i < instances; i++)
     instanceTransforms[i] = MatrixToFloatV(data[i].matrix);
 
-  // Enable mesh VAO to attach new buffer
-  rlEnableVertexArray(mesh.vaoId);
+  glBindVertexArray(_vaoID);
 
-  instancesVboId = rlLoadVertexBuffer(instanceTransforms, instances * sizeof(float16), false);
+  glBindBuffer(GL_ARRAY_BUFFER, _vboTransforms);
+  glBufferData(GL_ARRAY_BUFFER, instances * sizeof(float16), instanceTransforms, GL_STATIC_DRAW);
 
   for (unsigned int i = 0; i < 4; i++)
   {
@@ -262,7 +269,8 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
     }
   }
 
-  colorsVboId = rlLoadVertexBuffer(colorShades, instances * sizeof(float16), false);
+  glBindBuffer(GL_ARRAY_BUFFER, _vboColorShades);
+  glBufferData(GL_ARRAY_BUFFER, instances * sizeof(float16), colorShades, GL_STATIC_DRAW);
 
   for (unsigned int i = 0; i < 4; i++)
   {
@@ -271,35 +279,25 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
     rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
     rlSetVertexAttributeDivisor(baseLocation + i, 1);
   }
-
+  
   rlDisableVertexBuffer();
   rlDisableVertexArray();
+
+  // Accumulate internal matrix transform (push/pop) and view matrix
+  // NOTE: In this case, model instance transformation must be computed in the shader
+  matModelView = MatrixMultiply(rlGetMatrixTransform(), matView);
 
   // Upload model normal matrix (if locations available)
   if (material.shader.locs[SHADER_LOC_MATRIX_NORMAL] != -1)
     rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_NORMAL], MatrixTranspose(MatrixInvert(matModel)));
 
-  // Bind active texture maps (if available)
-  for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
-  {
-    if (material.maps[i].texture.id > 0)
-    {
-      // Select current shader texture slot
-      rlActiveTextureSlot(i);
 
-      // Enable texture for active slot
-      if ((i == MATERIAL_MAP_IRRADIANCE) ||
-        (i == MATERIAL_MAP_PREFILTER) ||
-        (i == MATERIAL_MAP_CUBEMAP)) rlEnableTextureCubemap(material.maps[i].texture.id);
-      else rlEnableTexture(material.maps[i].texture.id);
-
-      rlSetUniform(material.shader.locs[SHADER_LOC_MAP_DIFFUSE + i], &i, SHADER_UNIFORM_INT, 1);
-    }
-  }
+  // Try binding vertex array objects (VAO)
+  // or use VBOs if not possible
+  rlEnableVertexArray(_vaoID);
 
   // Calculate model-view-projection matrix (MVP)
-  Matrix matModelViewProjection = MatrixIdentity();
-  matModelViewProjection = MatrixMultiply(matView, matProjection);
+  Matrix matModelViewProjection = MatrixMultiply(matModelView, matProjection);
 
   // Send combined model-view-projection matrix to shader
   rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_MVP], matModelViewProjection);
@@ -335,33 +333,15 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
   rlDisableShader();
 
   // Remove instance transforms buffer
-  rlUnloadVertexBuffer(instancesVboId);
   RL_FREE(instanceTransforms);
-
-  rlUnloadVertexBuffer(colorsVboId);
   RL_FREE(colorShades);
 }
 
-    #if defined(GRAPHICS_API_OPENGL_ES2)
-        #include "glad_gles2.h"       // Required for: OpenGL functionality 
-        #define glGenVertexArrays glGenVertexArraysOES
-        #define glBindVertexArray glBindVertexArrayOES
-        #define glDeleteVertexArrays glDeleteVertexArraysOES
-        #define GLSL_VERSION            100
-    #else
-        #if defined(__APPLE__)
-            #define GL_SILENCE_DEPRECATION // Silence Opengl API deprecation warnings 
-            #include <OpenGL/gl3.h>     // OpenGL 3 library for OSX
-            #include <OpenGL/gl3ext.h>  // OpenGL 3 extensions library for OSX
-        #else
-            #include "glad.h"       // Required for: OpenGL functionality 
-        #endif
-        #define GLSL_VERSION            330
-    #endif
 
-void gfx::Batch::setup()
+void gfx::Batch::setup(int vaoID)
 {
-  glGenVertexArrays(1, &_vaoID);
+  //glGenVertexArrays(1, &_vaoID);
+  _vaoID = vaoID;
   glBindVertexArray(_vaoID);
 
   glGenBuffers(3, &_vboIDs[0]);
@@ -376,9 +356,14 @@ void gfx::Batch::setup()
   //rlBufferData(RL_ARRAY_BUFFER, _transformsData.size() * sizeof(float16), _transformsData.data(), RL_STATIC_DRAW);
 }
 
+void gfx::Batch::release()
+{
+  glDeleteBuffers(3, &_vboIDs[0]);
+}
+
 void gfx::Batch::update(const raylib::Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData)
 {
-  glBindVertexArray(_vaoID);
+  /*glBindVertexArray(_vaoID);
 
   glBindBuffer(GL_ARRAY_BUFFER, _vboVertices);
   glBufferData(GL_ARRAY_BUFFER, mesh.vertexCount * sizeof(Vector3), mesh.vertices, GL_STATIC_DRAW);
@@ -389,5 +374,5 @@ void gfx::Batch::update(const raylib::Mesh& mesh, const std::vector<gfx::Instanc
   glBindBuffer(GL_ARRAY_BUFFER, _vboColorShades);
   glBufferData(GL_ARRAY_BUFFER, _colorShadesData.size() * sizeof(float16), _colorShadesData.data(), GL_STATIC_DRAW);
 
-  glBindVertexArray(0);
+  glBindVertexArray(0);*/
 }

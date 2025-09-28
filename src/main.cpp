@@ -21,7 +21,8 @@
 #include "model/piece.h"
 #include "model/model.h"
 
-#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
+//#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
+#define BASE_PATH "../../models"
 
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
@@ -398,6 +399,7 @@ int main(int arg, char* argv[])
   InitWindow(1280, 800, "Nanoforge v0.0.1a");
 
   data.init();
+  renderer.init();
 
   Loader loader;
   auto result = loader.load(BASE_PATH "/test.yml");
