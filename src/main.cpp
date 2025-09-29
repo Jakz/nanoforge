@@ -177,9 +177,13 @@ Data data;
 #include <optional>
 #include <unordered_set>
 
+class Context;
+
 class InputHandler
 {
   enum class MouseButton { Left = 0, Middle, Right };
+  
+  Context* _context;
   
   std::unordered_set<int> _keyState;
   std::array<bool, 3> _mouseState;
@@ -190,7 +194,7 @@ class InputHandler
   void handleKeystate();
 
 public:
-  InputHandler() : _mouseState({ false, false, false }) { }
+  InputHandler(Context* context) : _context(context), _mouseState({ false, false, false }) { }
 
   void mouseDown(MouseButton button);
   void mouseUp(MouseButton button);
@@ -291,14 +295,6 @@ void InputHandler::mouseUp(MouseButton button)
 
 }
 
-void InputHandler::keyDown(int key)
-{
-  if (key == KEY_W)
-  {
-    printf("down!");
-  }
-}
-
 void InputHandler::keyUp(int key)
 {
 
@@ -311,8 +307,25 @@ struct Context
   gfx::Renderer renderer;
   InputHandler input;
   nb::Piece brush;
+  
+  Context() : input(this)
+  {
+    
+  }
 };
 
+
+void InputHandler::keyDown(int key)
+{
+  if (key == KEY_W)
+  {
+    _context->brush.derive(_context->brush.size() + size2d_t(1, 0));
+  }
+  else if (key == KEY_Q)
+  {
+    _context->brush.derive(_context->brush.size() + size2d_t(-1, 0));
+  }
+}
 
 
 

@@ -44,13 +44,27 @@ namespace nb
     Piece() : _coord(0, 0), _color(nullptr), _orientation(PieceOrientation::North), _size(1, 1) { }
     Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, size2d_t size = size2d_t(1, 1)) :
       _coord(coord), _color(color), _orientation(orientation), _size(size) { }
+    
+    Piece derive(size2d_t size)
+    {
+      Piece other;
+      other._color = _color;
+      other._orientation = _orientation;
+      other._coord = _coord;
+      other._size = size;
+      return other;
+    }
 
     coord2d_t coord() const { return _coord; }
     coord_t x() const { return _coord.x; }
     coord_t y() const { return _coord.y; }
     const PieceColor* color() const { return _color; }
+    size2d_t size() const { return _size; }
+    
 
     int32_t width() const { return _size.width; }
     int32_t height() const { return _size.height; }
+    
+    
   };
 }

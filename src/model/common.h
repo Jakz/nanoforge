@@ -32,4 +32,6 @@ struct size2d_t
   int32_t height;
 
   size2d_t(int32_t w, int32_t h) : width(w), height(h) { }
+  
+  size2d_t operator+(const size2d_t& size) { return size2d_t(width + size.width, height + size.height); }
 };
