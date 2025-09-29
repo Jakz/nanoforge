@@ -164,7 +164,7 @@ void Data::init()
       cols[i] = raylib::Color(col[0].as_int(), col[1].as_int(), col[2].as_int(), col[3].as_int());
     }
 
-    colors[id] = nb::PieceColor(cols);
+    colors[id] = nb::PieceColor(id, cols);
   }
 
   colors.lime = &colors["lime"];
@@ -197,7 +197,34 @@ class Loader
 {
   public:
     std::optional<nb::Model> load(const std::filesystem::path& filename);
+    void save(const nb::Model* model, const std::filesystem::path& filename);
 };
+
+void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
+{
+  fkyaml::node root = { { "pieces", fkyaml::node::sequence() } };
+  auto& pieces = root["pieces"].as_seq();
+
+  for (const auto& layer : model->layers())
+  {
+    for (const auto& piece : layer->pieces())
+    {
+      fkyaml::node node = {
+        "position", fkyaml::node::sequence({ layer->index(), piece.coord().x, piece.coord().y}) ,
+        "size", fkyaml::node::sequence({ piece.width(), piece.height() }) ,
+        "color", piece.color()->ident
+      };
+
+      pieces.emplace_back(std::move(node));
+    }
+  }
+  
+  std::string yaml = fkyaml::node::serialize(root);
+
+  std::ofstream out(filename, std::ios::binary);
+  out.write(yaml.data(), yaml.length());
+  out.close();
+}
 
 std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
 {
@@ -351,6 +378,8 @@ int main(int arg, char* argv[])
   }
 
   data.deinit();
+
+  loader.save(model.get(), BASE_PATH "/test_out.yml");
 
   CloseWindow();
   return 0;

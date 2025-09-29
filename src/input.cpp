@@ -129,6 +129,10 @@ void InputHandler::keyDown(int key)
     if (_context->brush->height() > 1)
       _context->brush->resize(_context->brush->size() + size2d_t(0, -1));
   }
+  else if (key == KEY_R)
+  {
+    _context->model->addLayerOnTop();
+  }
   else if (key >= KEY_ZERO && key <= KEY_NINE)
   {
     int index = (key == KEY_ZERO) ? 9 : (key - KEY_ONE);

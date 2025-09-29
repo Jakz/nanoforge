@@ -4,6 +4,7 @@
 #include <array>
 
 #include "common.h"
+#include "defines.h"
 
 #include "Color.hpp"
 
@@ -16,10 +17,11 @@ namespace nb
 
   struct PieceColor
   {
+    ident_t ident;
     std::array<raylib::Color, 4> colors;
 
     PieceColor() { }
-    PieceColor(const std::array<raylib::Color, 4>& cols) : colors(cols) { }
+    PieceColor(const ident_t& ident, const std::array<raylib::Color, 4>& cols) : ident(ident), colors(cols) { }
 
     const raylib::Color& top() const { return colors[0]; }
     const raylib::Color& left() const { return colors[1]; }

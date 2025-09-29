@@ -43,6 +43,9 @@ namespace nb
     void addLayer(layer_index_t index);
     void prepareLayers(layer_index_t count);
     void addPiece(layer_index_t layerIndex, const Piece& piece);
+
+    void addLayerOnTop() { addLayer(static_cast<layer_index_t>(_layers.size())); }
+    void addLayerAtBottom() { addLayer(0); }
     
     Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
     const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
