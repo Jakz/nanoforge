@@ -32,9 +32,15 @@ namespace nb
     friend class nb::Model;
   };
 
+  struct ModelInfo
+  {
+    std::string name;
+  };
+
   class Model
   {
   protected:
+    ModelInfo _info;
     std::vector<std::unique_ptr<Layer>> _layers;
 
     void linkLayers(Layer* prev, Layer* next);
@@ -51,6 +57,9 @@ namespace nb
     const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
     
     const auto& layers() const { return _layers; }
+    
+    auto& info() { return _info; }
+    const auto& info() const { return _info; }
 
     layer_index_t lastLayerIndex() const { return static_cast<layer_index_t>(_layers.size()) - 1; }
     layer_index_t layerCount() const { return static_cast<layer_index_t>(_layers.size()); }

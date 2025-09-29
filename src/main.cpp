@@ -23,8 +23,8 @@
 #include "model/piece.h"
 #include "model/model.h"
 
-//#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
-#define BASE_PATH "../../models"
+#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
+//#define BASE_PATH "../../models"
 
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
@@ -202,7 +202,9 @@ class Loader
 
 void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
 {
-  fkyaml::node root = { { "pieces", fkyaml::node::sequence() } };
+  fkyaml::node root = { { "pieces", fkyaml::node::sequence() }, { "info", fkyaml::node::mapping() } };
+  root["info"]["name"] = model->info().name;
+  
   auto& pieces = root["pieces"].as_seq();
 
   for (const auto& layer : model->layers())
@@ -210,15 +212,16 @@ void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
     for (const auto& piece : layer->pieces())
     {
       fkyaml::node node = {
-        "position", fkyaml::node::sequence({ layer->index(), piece.coord().x, piece.coord().y}) ,
-        "size", fkyaml::node::sequence({ piece.width(), piece.height() }) ,
-        "color", piece.color()->ident
+        { "position", fkyaml::node::sequence({ layer->index(), piece.coord().x, piece.coord().y}) },
+        { "size", fkyaml::node::sequence({ piece.width(), piece.height() }) },
+        { "color", piece.color()->ident }
       };
+      
 
       pieces.emplace_back(std::move(node));
     }
   }
-  
+    
   std::string yaml = fkyaml::node::serialize(root);
 
   std::ofstream out(filename, std::ios::binary);
@@ -255,6 +258,7 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
     LOG("Loading model %s... (%d pieces, %d layers)", node["info"]["name"].as_str().c_str(), node["pieces"].as_seq().size(), maxZ);
 
     model.prepareLayers(maxZ + 1);
+    model.info().name = node["info"]["name"].as_str();
 
     /* load pieces */
     for (const auto& p : node["pieces"].as_seq())
