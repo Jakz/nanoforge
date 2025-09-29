@@ -45,7 +45,14 @@ namespace nb
     Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, size2d_t size = size2d_t(1, 1)) :
       _coord(coord), _color(color), _orientation(orientation), _size(size) { }
     
-    Piece derive(size2d_t size)
+    void resize(size2d_t size) { _size = size; }
+    void swapSize() { _size = size2d_t(_size.height, _size.width); }
+
+    void moveAt(coord2d_t coord) { _coord = coord; }
+
+    void dye(const PieceColor* color) { _color = color; }
+
+    Piece derive(size2d_t size) const
     {
       Piece other;
       other._color = _color;

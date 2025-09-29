@@ -17,14 +17,17 @@
     <ClCompile Include="..\..\..\libs\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\..\..\libs\imgui\imgui_widgets.cpp" />
     <ClCompile Include="..\..\..\libs\rlImGui\rlImGui.cpp" />
+    <ClCompile Include="..\..\src\input.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\model\model.cpp" />
     <ClCompile Include="..\..\src\renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\context.h" />
     <ClInclude Include="..\..\src\defines.h" />
     <ClInclude Include="..\..\src\glad\glad.h" />
     <ClInclude Include="..\..\src\glad\khrplatform.h" />
+    <ClInclude Include="..\..\src\input.h" />
     <ClInclude Include="..\..\src\model\common.h" />
     <ClInclude Include="..\..\src\model\model.h" />
     <ClInclude Include="..\..\src\model\piece.h" />

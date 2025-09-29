@@ -11,7 +11,9 @@
 #include "io/node.hpp"
 
 #include "defines.h"
+#include "context.h"
 #include "renderer.h"
+#include "input.h"
 
 #include <vector>
 #include <array>
@@ -21,14 +23,18 @@
 #include "model/piece.h"
 #include "model/model.h"
 
-#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
-//#define BASE_PATH "../../models"
+//#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
+#define BASE_PATH "../../models"
 
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
 
 #define LOG(msg, ...)   printf("[nanoforge] " msg "\n", ##__VA_ARGS__)
 
+
+size2d_t Data::Constants::LAYER2D_CELL_SIZE = size2d_t(16.0f, 16.0f);
+vec2 Data::Constants::LAYER2D_BASE = vec2(10.0f, 10.0f);
+float Data::Constants::LAYER2D_SPACING = 10.0f;
 
 
 void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camera3D& cam, Color col) {
@@ -177,157 +183,15 @@ Data data;
 #include <optional>
 #include <unordered_set>
 
-class Context;
 
-class InputHandler
-{
-  enum class MouseButton { Left = 0, Middle, Right };
-  
-  Context* _context;
-  
-  std::unordered_set<int> _keyState;
-  std::array<bool, 3> _mouseState;
-  std::optional<coord3d_t> _hover;
-
-  nb::Model* model;
-
-  void handleKeystate();
-
-public:
-  InputHandler(Context* context) : _context(context), _mouseState({ false, false, false }) { }
-
-  void mouseDown(MouseButton button);
-  void mouseUp(MouseButton button);
-
-  void keyDown(int key);
-  void keyUp(int key);
-
-  void handle(nb::Model* model);
-
-  const auto& hover() const { return _hover; }
-};
-
-void InputHandler::handleKeystate()
-{
-  /* use GetKeyState to insert pressed keys into _keyState or remove them if they're not pressed anymore */
-  std::unordered_set<int> newState;
-  int c;
-  while ((c = GetKeyPressed()))
-    newState.insert(c);
-
-  /* trigger events */
-  for (int key : _keyState)
-  {
-    if (newState.find(key) == newState.end())
-      keyUp(key);
-  }
-
-  for (int key : newState)
-  {
-    if (_keyState.find(key) == _keyState.end())
-      keyDown(key);
-  }
-
-  _keyState = newState;
-}
-
-
-static size2d_t LAYER2D_CELL_SIZE = size2d_t(16.0f, 16.0f);
-static vec2 LAYER2D_BASE = vec2(10.0f, 10.0f);
-static float LAYER2D_SPACING = 10.0f;
-
-void InputHandler::handle(nb::Model* model)
-{
-  this->model = model;
-
-  handleKeystate();
-
-  vec2 position = GetMousePosition();
-
-  bool any = false;
-  for (layer_index_t i = 0; i < model->layerCount(); ++i)
-  {
-    float y = (gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height) * i + (LAYER2D_SPACING * i);
-    rect bounds = rect(LAYER2D_BASE.x, LAYER2D_BASE.y + y, gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.width, gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height);
-
-    /* if mouse is inside 2d layer grid */
-    if (bounds.CheckCollision(position))
-    {
-      auto relative = position - bounds.Origin();
-      coord2d_t cell = coord2d_t(relative.x / LAYER2D_CELL_SIZE.width, relative.y / LAYER2D_CELL_SIZE.height);
-      _hover = coord3d_t(cell, model->lastLayerIndex() - i);
-      any = true;
-      break;
-    }
-  }
-  
-  if (!any)
-    _hover.reset();
-
-  /* fetch button state into a new std::array and call relevant methods if state changed */
-  std::array<bool, 3> newState = { IsMouseButtonDown(MOUSE_LEFT_BUTTON), IsMouseButtonDown(MOUSE_MIDDLE_BUTTON), IsMouseButtonDown(MOUSE_RIGHT_BUTTON) };
-  for (size_t i = 0; i < _mouseState.size(); ++i)
-  {
-    if (newState[i] != _mouseState[i])
-    {
-      if (newState[i])
-        mouseDown(static_cast<MouseButton>(i));
-      else
-        mouseUp(static_cast<MouseButton>(i));
-    }
-  }
-  _mouseState = newState;
-}
-
-void InputHandler::mouseDown(MouseButton button)
-{
-  if (button == MouseButton::Left && _hover)
-  {
-    // add a piece at hover position
-    nb::Piece* p = model->piece(*_hover);
-    if (p)
-      model->remove(p);
-  }
-}
-
-void InputHandler::mouseUp(MouseButton button)
+Context::Context() : 
+  model(std::make_unique<nb::Model>()), 
+  renderer(std::make_unique<gfx::Renderer>(this)), 
+  input(std::make_unique<InputHandler>(this)), 
+  brush(std::make_unique<nb::Piece>(nb::Piece()))
 {
 
 }
-
-void InputHandler::keyUp(int key)
-{
-
-}
-
-
-struct Context
-{
-  nb::Model model;
-  gfx::Renderer renderer;
-  InputHandler input;
-  nb::Piece brush;
-  
-  Context() : input(this)
-  {
-    
-  }
-};
-
-
-void InputHandler::keyDown(int key)
-{
-  if (key == KEY_W)
-  {
-    _context->brush.derive(_context->brush.size() + size2d_t(1, 0));
-  }
-  else if (key == KEY_Q)
-  {
-    _context->brush.derive(_context->brush.size() + size2d_t(-1, 0));
-  }
-}
-
-
 
 class Loader
 {
@@ -402,28 +266,28 @@ int main(int arg, char* argv[])
   Context context;
 
   auto& model = context.model;
-  gfx::Renderer& renderer = context.renderer;
-  InputHandler& input = context.input;
+  gfx::Renderer* renderer = context.renderer.get();
+  InputHandler* input = context.input.get();
 
   SetConfigFlags(FLAG_MSAA_4X_HINT);
 
   InitWindow(1280, 800, "Nanoforge v0.0.1a");
 
   data.init();
-  renderer.init();
+  renderer->init();
 
   Loader loader;
   auto result = loader.load(BASE_PATH "/test.yml");
   if (result)
-    context.model = std::move(*result);
+    *context.model = std::move(*result);
 
-  context.brush = nb::Piece(coord2d_t(0, 0), data.colors.lime, nb::PieceOrientation::North, size2d_t(1, 1));
+  context.brush.reset(new nb::Piece(coord2d_t(0, 0), data.colors.lime, nb::PieceOrientation::North, size2d_t(1, 1)));
 
-  renderer.camera().target = { gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f,  0.0f,  gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f };
-  renderer.camera().position = { renderer.camera().target.x * 4.0f, renderer.camera().target.x * 2.0f, renderer.camera().target.y * 4.0f };
-  renderer.camera().up = { 0.0f,  1.0f,  0.0f };
-  renderer.camera().fovy = 45.0f;
-  renderer.camera().projection = CAMERA_PERSPECTIVE;
+  renderer->camera().target = { gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f,  0.0f,  gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f };
+  renderer->camera().position = { renderer->camera().target.x * 4.0f, renderer->camera().target.x * 2.0f, renderer->camera().target.y * 4.0f };
+  renderer->camera().up = { 0.0f,  1.0f,  0.0f };
+  renderer->camera().fovy = 45.0f;
+  renderer->camera().projection = CAMERA_PERSPECTIVE;
 
   int locThr = data.shaders.flatShading->GetLocation("yThreshold");
 
@@ -436,12 +300,12 @@ int main(int arg, char* argv[])
 
   while (!WindowShouldClose())
   {
-    UpdateCamera(&renderer.camera(), CAMERA_ORBITAL);
+    UpdateCamera(&renderer->camera(), CAMERA_ORBITAL);
 
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    BeginMode3D(renderer.camera());
+    BeginMode3D(renderer->camera());
     //DrawGrid(20, 10.0f);
 
     /*
@@ -458,21 +322,21 @@ int main(int arg, char* argv[])
     }
     */
 
-    renderer.render(&model);
+    renderer->render(model.get());
 
     EndMode3D();
 
-    for (layer_index_t i = 0; i < model.layerCount(); ++i)
+    for (layer_index_t i = 0; i < model->layerCount(); ++i)
     {
-      auto idx = model.lastLayerIndex() - i;
-      float y = (gfx::Renderer::MOCK_LAYER_SIZE * LAYER2D_CELL_SIZE.height) * i + (LAYER2D_SPACING * i);
-      renderer.renderLayerGrid2d(LAYER2D_BASE + vec2(0, y), model.layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), LAYER2D_CELL_SIZE);
+      auto idx = model->lastLayerIndex() - i;
+      float y = (gfx::Renderer::MOCK_LAYER_SIZE * Data::Constants::LAYER2D_CELL_SIZE.height) * i + (Data::Constants::LAYER2D_SPACING * i);
+      renderer->renderLayerGrid2d(Data::Constants::LAYER2D_BASE + vec2(0, y), model->layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), Data::Constants::LAYER2D_CELL_SIZE);
     }
    
-    if (input.hover())
+    if (input->hover())
     {
       /* draw string with coordinate in bottom left corner */
-      std::string coordStr = TextFormat("Hover: %d - (%d, %d)", input.hover()->z, input.hover()->x, input.hover()->y);
+      std::string coordStr = TextFormat("Hover: %d - (%d, %d)", input->hover()->z, input->hover()->x, input->hover()->y);
       DrawText(coordStr.c_str(), 10, GetScreenHeight() - 30, 14, DARKGRAY);
     }
 
@@ -481,7 +345,7 @@ int main(int arg, char* argv[])
     ImGui::ShowDemoWindow(&open);
     rlImGuiEnd();*/
 
-    input.handle(&model);
+    input->handle(model.get());
 
     EndDrawing();
   }

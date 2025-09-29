@@ -1,5 +1,8 @@
 #include "renderer.h"
 
+#include "context.h"
+#include "input.h"
+
 extern Data data;
 
 // Replica la trasform di DrawModel: T(pos) * R(rot) * S(scale) * model.transform
@@ -88,7 +91,7 @@ constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
 constexpr float studDiameter = 2.5f;
 
-void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const gfx::InstanceData* transforms, int instances);
+gfx::Renderer::Renderer(Context* context) : _context(context) { }
 
 void gfx::Renderer::init()
 {
@@ -136,7 +139,18 @@ void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_
     DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 2.0f, piece.color()->edge());
   }
 
-
+  /* draw hover if present */
+  if (_context->input->hover())
+  {
+    const coord3d_t& hover = *_context->input->hover();
+    if (hover.z == layer->index())
+    {
+      vec2 pos = vec2(base.x + hover.x * cellSize.width, base.y + hover.y * cellSize.height);
+      vec2 size = vec2(cellSize.width * _context->brush->width(), cellSize.height * _context->brush->height());
+      DrawRectangleV(pos, size, color(180, 0, 0, 100));
+      DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 2.0f, color(255, 0, 0, 200));
+    }
+  }
 }
 
 void gfx::Renderer::render(const nb::Model* model)
@@ -148,19 +162,19 @@ void gfx::Renderer::render(const nb::Model* model)
 
 void gfx::Renderer::renderLayerGrid3d(layer_index_t index, size2d_t size)
 {
-  for (int x = 0; x < size.width; ++x)
+  for (int x = 0; x <= size.width; ++x)
   {
     /* draw vertical lines using DrawCylinderEx */
     Vector3 p0 = { x * side, index * height, 0.0f };
-    Vector3 p1 = { x * side, index * height, (size.height - 1) * side };
+    Vector3 p1 = { x * side, index * height, (size.height) * side };
     DrawCylinderEx(p0, p1, 0.02f, 0.02f, EDGE_COMPLEXITY, raylib::Color(80, 80, 80, 100));
   }
 
-  for (int y = 0; y < size.height; ++y)
+  for (int y = 0; y <= size.height; ++y)
   {
     /* draw horizontal lines using DrawCylinderEx */
     Vector3 p0 = { 0.0f, index * height, y * side };
-    Vector3 p1 = { (size.width - 1) * side, index * height, y * side };
+    Vector3 p1 = { (size.width) * side, index * height, y * side };
     DrawCylinderEx(p0, p1, 0.02f, 0.02f, EDGE_COMPLEXITY, raylib::Color(80, 80, 80, 100));
   }
 }

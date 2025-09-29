@@ -7,6 +7,7 @@
 #include "Camera3D.hpp"
 
 #include "model/model.h"
+#include "defines.h"
 
 namespace gfx
 {
@@ -38,9 +39,12 @@ namespace gfx
   class Renderer
   {
   public:
+    
 
 
   protected:
+    Context* _context;
+
     raylib::Camera3D _camera;
     std::vector<InstanceData> _studData;
 
@@ -63,6 +67,8 @@ namespace gfx
     void renderStuds();
 
   public:
+    Renderer(Context* context);
+
     void init();
 
     void renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize);

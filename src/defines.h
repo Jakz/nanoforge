@@ -12,6 +12,8 @@ using color = raylib::Color;
 
 using ident_t = std::string;
 
+#include "model/common.h"
+
 namespace nb
 {
   class PieceColor;
@@ -20,7 +22,7 @@ namespace nb
   class Piece;
 }
 
-#include <unordered_map>
+#include <map>
 #include "Shader.hpp"
 #include "Material.hpp"
 #include "Mesh.hpp"
@@ -42,6 +44,10 @@ struct Data
     static constexpr float height = 3.1f;
     static constexpr float studHeight = 1.4f;
     static constexpr float studDiameter = 2.5f;
+
+    static size2d_t LAYER2D_CELL_SIZE;
+    static vec2 LAYER2D_BASE;
+    static float LAYER2D_SPACING;
   };
 
   struct Shaders
@@ -60,7 +66,7 @@ struct Data
     raylib::Mesh stud;
   } meshes;
 
-  struct Colors : public std::unordered_map<ident_t, nb::PieceColor>
+  struct Colors : public std::map<ident_t, nb::PieceColor>
   {
     const nb::PieceColor* lime;
     const nb::PieceColor* white;
@@ -69,3 +75,5 @@ struct Data
   void init();
   void deinit();
 };
+
+class Context;
