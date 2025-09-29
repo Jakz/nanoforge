@@ -199,7 +199,7 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
     DrawCubeEdgesFast(side, height, side, transforms[i - 1].matrix, piece.color()->edge());
   }
 
-  _cubeBatch.MyDrawMeshInstanced(data.meshes.cube, data.materials.flatMaterial, transforms.data(), transforms.size());
+  _cubeBatch.MyDrawMeshInstanced(data.meshes.cube, data.materials.flatMaterial, transforms);
 }
 
 void gfx::Renderer::renderStuds()
@@ -207,7 +207,7 @@ void gfx::Renderer::renderStuds()
   if (_studData.empty())
     return;
 
-  _studBatch.MyDrawMeshInstanced(data.meshes.stud, data.materials.flatMaterial, _studData.data(), _studData.size());
+  _studBatch.MyDrawMeshInstanced(data.meshes.stud, data.materials.flatMaterial, _studData);
 
   _studData.clear();
 }
@@ -222,7 +222,7 @@ void gfx::Renderer::renderModel(const nb::Model* model)
 
 #include "glad/glad.h"
 
-void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const gfx::InstanceData* data, int instances)
+void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const std::vector<InstanceData>& data)
 {
   constexpr size_t MAX_MATERIAL_MAPS = 4;
 
@@ -237,51 +237,6 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
   Matrix matModelView = MatrixIdentity();
   Matrix matProjection = rlGetMatrixProjection();
 
-  // Create instances buffer
-  instanceTransforms = (float16*)RL_MALLOC(instances * sizeof(float16));
-
-  // Fill buffer with instances transformations as float16 arrays
-  for (int i = 0; i < instances; i++)
-    instanceTransforms[i] = MatrixToFloatV(data[i].matrix);
-
-  glBindVertexArray(_vaoID);
-
-  glBindBuffer(GL_ARRAY_BUFFER, _vboTransforms);
-  glBufferData(GL_ARRAY_BUFFER, instances * sizeof(float16), instanceTransforms, GL_STATIC_DRAW);
-
-  for (unsigned int i = 0; i < 4; i++)
-  {
-    auto baseLocation = material.shader.locs[SHADER_LOC_VERTEX_INSTANCE_TX];
-    rlEnableVertexAttribute(baseLocation + i);
-    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
-    rlSetVertexAttributeDivisor(baseLocation + i, 1);
-  }
-
-  float16* colorShades = (float16*)RL_MALLOC(instances * sizeof(float16));
-  for (int i = 0; i < instances; ++i)
-  {
-    for (int j = 0; j < 4; ++j)
-    {
-      colorShades[i].v[j * 4 + 0] = data[i].color->colors[j].r / 255.0f;
-      colorShades[i].v[j * 4 + 1] = data[i].color->colors[j].g / 255.0f;
-      colorShades[i].v[j * 4 + 2] = data[i].color->colors[j].b / 255.0f;
-      colorShades[i].v[j * 4 + 3] = data[i].color->colors[j].a / 255.0f;
-    }
-  }
-
-  glBindBuffer(GL_ARRAY_BUFFER, _vboColorShades);
-  glBufferData(GL_ARRAY_BUFFER, instances * sizeof(float16), colorShades, GL_STATIC_DRAW);
-
-  for (unsigned int i = 0; i < 4; i++)
-  {
-    auto baseLocation = material.shader.locs[SHADER_LOC_COLOR_SHADE];
-    rlEnableVertexAttribute(baseLocation + i);
-    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
-    rlSetVertexAttributeDivisor(baseLocation + i, 1);
-  }
-  
-  rlDisableVertexBuffer();
-  rlDisableVertexArray();
 
   // Accumulate internal matrix transform (push/pop) and view matrix
   // NOTE: In this case, model instance transformation must be computed in the shader
@@ -292,6 +247,8 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
     rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_NORMAL], MatrixTranspose(MatrixInvert(matModel)));
 
 
+  update(mesh, data);
+  
   // Try binding vertex array objects (VAO)
   // or use VBOs if not possible
   rlEnableVertexArray(_vaoID);
@@ -304,9 +261,9 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
 
   // Draw mesh instanced
   if (mesh.indices != NULL)
-    rlDrawVertexArrayElementsInstanced(0, mesh.triangleCount * 3, 0, instances);
+    rlDrawVertexArrayElementsInstanced(0, mesh.triangleCount * 3, 0, data.size());
   else
-    rlDrawVertexArrayInstanced(0, mesh.vertexCount, instances);
+    rlDrawVertexArrayInstanced(0, mesh.vertexCount, data.size());
 
   // Unbind all bound texture maps
   for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
@@ -334,7 +291,6 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
 
   // Remove instance transforms buffer
   RL_FREE(instanceTransforms);
-  RL_FREE(colorShades);
 }
 
 
@@ -349,6 +305,24 @@ void gfx::Batch::setup(int vaoID)
   _vboVertices = _vboIDs[0];
   _vboTransforms = _vboIDs[1];
   _vboColorShades = _vboIDs[2];
+  
+  rlEnableVertexBuffer(_vboTransforms);
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    auto baseLocation = ::data.shaders.flatShading.locationInstanceTransform;
+    rlEnableVertexAttribute(baseLocation + i);
+    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
+    rlSetVertexAttributeDivisor(baseLocation + i, 1);
+  }
+
+  rlEnableVertexBuffer(_vboColorShades);
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    auto baseLocation = ::data.shaders.flatShading.locationColorShade;
+    rlEnableVertexAttribute(baseLocation + i);
+    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
+    rlSetVertexAttributeDivisor(baseLocation + i, 1);
+  }
 
   glBindVertexArray(0);
 
@@ -361,18 +335,37 @@ void gfx::Batch::release()
   glDeleteBuffers(3, &_vboIDs[0]);
 }
 
-void gfx::Batch::update(const raylib::Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData)
+void gfx::Batch::update(const Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData)
 {
-  /*glBindVertexArray(_vaoID);
+  const size_t count = instancesData.size();
+  
+  rlEnableVertexArray(_vaoID);
 
-  glBindBuffer(GL_ARRAY_BUFFER, _vboVertices);
-  glBufferData(GL_ARRAY_BUFFER, mesh.vertexCount * sizeof(Vector3), mesh.vertices, GL_STATIC_DRAW);
+  //glBindBuffer(GL_ARRAY_BUFFER, _vboVertices);
+  //glBufferData(GL_ARRAY_BUFFER, mesh.vertexCount * sizeof(Vector3), mesh.vertices, GL_STATIC_DRAW);
 
+  _transformsData.resize(instancesData.size());
+  for (int i = 0; i < count; i++)
+    _transformsData[i] = MatrixToFloatV(instancesData[i].matrix);
+  
   glBindBuffer(GL_ARRAY_BUFFER, _vboTransforms);
   glBufferData(GL_ARRAY_BUFFER, _transformsData.size() * sizeof(float16), _transformsData.data(), GL_STATIC_DRAW);
 
+  _colorShadesData.resize(instancesData.size());
+  for (int i = 0; i < count; ++i)
+  {
+    for (int j = 0; j < 4; ++j)
+    {
+      _colorShadesData[i].v[j * 4 + 0] = instancesData[i].color->colors[j].r / 255.0f;
+      _colorShadesData[i].v[j * 4 + 1] = instancesData[i].color->colors[j].g / 255.0f;
+      _colorShadesData[i].v[j * 4 + 2] = instancesData[i].color->colors[j].b / 255.0f;
+      _colorShadesData[i].v[j * 4 + 3] = instancesData[i].color->colors[j].a / 255.0f;
+    }
+  }
+  
   glBindBuffer(GL_ARRAY_BUFFER, _vboColorShades);
-  glBufferData(GL_ARRAY_BUFFER, _colorShadesData.size() * sizeof(float16), _colorShadesData.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, count * sizeof(float16), _colorShadesData.data(), GL_STATIC_DRAW);
 
-  glBindVertexArray(0);*/
+  rlDisableVertexBuffer();
+  rlDisableVertexArray();
 }

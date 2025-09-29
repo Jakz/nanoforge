@@ -8,9 +8,6 @@
 
 #include "model/model.h"
 
-#define SHADER_LOC_VERTEX_INSTANCE_TX (SHADER_LOC_BONE_MATRICES + 1)
-#define SHADER_LOC_COLOR_SHADE (SHADER_LOC_VERTEX_INSTANCE_TX + 4)
-
 namespace gfx
 {
   struct InstanceData
@@ -30,12 +27,12 @@ namespace gfx
     std::vector<float16> _colorShadesData;
     std::vector<float16> _transformsData;
 
-    void update(const raylib::Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData);
+    void update(const Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData);
 
   public:
     void setup(int vaoID);
     void release();
-    void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const gfx::InstanceData* data, int instances);
+    void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const std::vector<InstanceData>& data);
   };
 
   class Renderer

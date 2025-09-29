@@ -25,6 +25,15 @@ namespace nb
 #include "Material.hpp"
 #include "Mesh.hpp"
 
+struct FlatShader
+{
+  raylib::ShaderUnmanaged shader;
+  unsigned int locationInstanceTransform;
+  unsigned int locationColorShade;
+  
+  raylib::ShaderUnmanaged* operator->() { return &shader; }
+};
+
 struct Data
 {
   struct Constants
@@ -37,7 +46,7 @@ struct Data
 
   struct Shaders
   {
-    raylib::ShaderUnmanaged flatShading;
+    FlatShader flatShading;
   } shaders;
 
   struct Materials

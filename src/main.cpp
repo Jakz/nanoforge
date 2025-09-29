@@ -21,8 +21,8 @@
 #include "model/piece.h"
 #include "model/model.h"
 
-//#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
-#define BASE_PATH "../../models"
+#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
+//#define BASE_PATH "../../models"
 
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
@@ -88,23 +88,21 @@ auto fragShader = R"(
 in vec3 vNormalWorld;
 flat in mat4 vColorShades;
 
-uniform vec3 colorUp;     // colore per facce "verso l'alto"
-uniform vec3 colorRight;   // colore per tutte le altre
-uniform vec3 colorLeft;
 uniform float yThreshold; // soglia (0..1). Tipico 0.2-0.4
 
 out vec4 fragColor;
 
 void main()
 {
-  float isUp = step(yThreshold, vNormalWorld.y);   // 1 se Y>=soglia, altrimenti 0
+  vec3 normal = normalize(vNormalWorld);
+  float isUp = step(yThreshold, normal.y);   // 1 se Y>=soglia, altrimenti 0
   if (isUp > 0.5)
   {
     fragColor = vColorShades[0];
   }
   else
   {      
-    fragColor = (vNormalWorld.x > 0.0) ? vColorShades[2] : vColorShades[1];
+    fragColor = (normal.x > 0.0) ? vColorShades[2] : vColorShades[1];
   }
 }
 )";
@@ -140,12 +138,12 @@ void Data::init()
   meshes.cube = raylib::Mesh::Cube(side, height, side);
   meshes.stud = raylib::Mesh::Cylinder(studDiameter / 2.0f, studHeight, 32);
 
-  shaders.flatShading = raylib::Shader::LoadFromMemory(vertShader, fragShader);
-  shaders.flatShading.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading.GetLocation("mvp");
-  shaders.flatShading.locs[SHADER_LOC_VERTEX_INSTANCE_TX] = shaders.flatShading.GetLocationAttrib("instanceTransform");
-  shaders.flatShading.locs[SHADER_LOC_COLOR_SHADE] = shaders.flatShading.GetLocationAttrib("colorShades");
+  shaders.flatShading.shader = raylib::Shader::LoadFromMemory(vertShader, fragShader);
+  shaders.flatShading.shader.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading->GetLocation("mvp");
+  shaders.flatShading.locationInstanceTransform = shaders.flatShading->GetLocationAttrib("instanceTransform");
+  shaders.flatShading.locationColorShade = shaders.flatShading->GetLocationAttrib("colorShades");
 
-  materials.flatMaterial.shader = shaders.flatShading;
+  materials.flatMaterial.shader = shaders.flatShading.shader;
 
   /* load colors from ../../models/colors.yml */
   auto node = fkyaml::node::deserialize(files::read_as_string(BASE_PATH "/colors.yml"));
@@ -414,21 +412,10 @@ int main(int arg, char* argv[])
   renderer.camera().fovy = 45.0f;
   renderer.camera().projection = CAMERA_PERSPECTIVE;
 
-  // Uniform palette
-  int locUp = data.shaders.flatShading.GetLocation("colorUp");
-  int locLeft = data.shaders.flatShading.GetLocation("colorLeft");
-  int locRight = data.shaders.flatShading.GetLocation("colorRight");
-  int locThr = data.shaders.flatShading.GetLocation("yThreshold");
+  int locThr = data.shaders.flatShading->GetLocation("yThreshold");
 
-  float thr = 0.3f; 
-
-  auto top = data.colors.lime->topV();
-  auto left = data.colors.lime->leftV();
-  auto right = data.colors.lime->rightV();
-  data.shaders.flatShading.SetValue(locUp, &top, SHADER_UNIFORM_VEC3);
-  data.shaders.flatShading.SetValue(locLeft, &left, SHADER_UNIFORM_VEC3);
-  data.shaders.flatShading.SetValue(locRight, &right, SHADER_UNIFORM_VEC3);
-  data.shaders.flatShading.SetValue(locThr, &thr, SHADER_UNIFORM_FLOAT);
+  float thr = 0.3f;
+  data.shaders.flatShading->SetValue(locThr, &thr, SHADER_UNIFORM_FLOAT);
 
   //rlImGuiSetup(true);
 

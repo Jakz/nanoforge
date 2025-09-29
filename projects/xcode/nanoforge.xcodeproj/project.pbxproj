@@ -51,6 +51,8 @@
 		04F43B582E894CF500AD23B8 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		04F43B5A2E894D0A00AD23B8 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		04F43B5C2E894D1B00AD23B8 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		04F43B5F2E89F58900AD23B8 /* glad.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = glad.h; path = ../../src/glad/glad.h; sourceTree = "<group>"; };
+		04F43B602E89F58900AD23B8 /* khrplatform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = khrplatform.h; path = ../../src/glad/khrplatform.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +94,7 @@
 		04F43B3D2E89435700AD23B8 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				04F43B5E2E89F57500AD23B8 /* glad */,
 				04F43B472E8943B400AD23B8 /* model */,
 				04F43B442E89439B00AD23B8 /* io */,
 				04F43B412E89439500AD23B8 /* defines.h */,
@@ -134,6 +137,15 @@
 				04F43B4E2E89457C00AD23B8 /* libraylib.a */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		04F43B5E2E89F57500AD23B8 /* glad */ = {
+			isa = PBXGroup;
+			children = (
+				04F43B5F2E89F58900AD23B8 /* glad.h */,
+				04F43B602E89F58900AD23B8 /* khrplatform.h */,
+			);
+			name = glad;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
