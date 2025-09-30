@@ -31,7 +31,7 @@ namespace gfx
     void update(const Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData);
 
   public:
-    void setup(int vaoID);
+    void setup(FlatShader* shader, int vaoID);
     void release();
     void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const std::vector<InstanceData>& data);
   };
@@ -49,7 +49,25 @@ namespace gfx
     std::vector<InstanceData> _studData;
 
     Batch _cubeBatch;
+    Batch _cylinderBatch;
     Batch _studBatch;
+
+    struct Meshes
+    {
+      raylib::Mesh cube;
+      raylib::Mesh cylinder;
+      raylib::Mesh stud;
+    } meshes;
+
+    struct Shaders
+    {
+      FlatShader flatShading;
+    } shaders;
+
+    struct Materials
+    {
+      raylib::Material flatMaterial;
+    } materials;
 
   public:
     static constexpr int EDGE_COMPLEXITY = 6;
@@ -68,8 +86,10 @@ namespace gfx
 
   public:
     Renderer(Context* context);
+    ~Renderer() { deinit(); }
 
     void init();
+    void deinit();
 
     void renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize);
   };

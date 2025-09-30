@@ -68,54 +68,6 @@ void DrawCylinderSilhouette(const Vector3& center, float r, float h, const Camer
   DrawLineEx(GetWorldToScreen(a0, cam), GetWorldToScreen(b0, cam), 5.0f, col);
 }
 
-auto vertShader = R"(
-#version 330
-
-layout(location=0) in vec3 vertexPosition;
-layout(location=1) in vec3 vertexNormal;
-layout(location=2) in mat4 instanceTransform;
-layout(location=6) in mat4 colorShades;
-
-uniform mat4 mvp;
-
-out vec3 vNormalWorld;
-flat out mat4 vColorShades;
-
-void main()
-{
-  mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
-  vNormalWorld = normalize(normalMatrix * vertexNormal);
-  vColorShades = colorShades;
-
-  gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
-}
-)";
-
-auto fragShader = R"(
-#version 330
-
-in vec3 vNormalWorld;
-flat in mat4 vColorShades;
-
-uniform float yThreshold; // soglia (0..1). Tipico 0.2-0.4
-
-out vec4 fragColor;
-
-void main()
-{
-  vec3 normal = normalize(vNormalWorld);
-  float isUp = step(yThreshold, normal.y);   // 1 se Y>=soglia, altrimenti 0
-  if (isUp > 0.5)
-  {
-    fragColor = vColorShades[0];
-  }
-  else
-  {      
-    fragColor = (normal.x > 0.0) ? vColorShades[2] : vColorShades[1];
-  }
-}
-)";
-
 constexpr float side = 3.8f;   // lato
 constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
@@ -144,16 +96,6 @@ struct files
 
 void Data::init()
 {
-  meshes.cube = raylib::Mesh::Cube(side, height, side);
-  meshes.stud = raylib::Mesh::Cylinder(studDiameter / 2.0f, studHeight, 32);
-
-  shaders.flatShading.shader = raylib::Shader::LoadFromMemory(vertShader, fragShader);
-  shaders.flatShading.shader.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading->GetLocation("mvp");
-  shaders.flatShading.locationInstanceTransform = shaders.flatShading->GetLocationAttrib("instanceTransform");
-  shaders.flatShading.locationColorShade = shaders.flatShading->GetLocationAttrib("colorShades");
-
-  materials.flatMaterial.shader = shaders.flatShading.shader;
-
   /* load colors from ../../models/colors.yml */
   auto node = fkyaml::node::deserialize(files::read_as_string(BASE_PATH "/colors.yml"));
   for (const auto& cc : node["colors"].as_seq())
@@ -174,12 +116,6 @@ void Data::init()
   colors.white = &colors["white"];
 }
 
-void Data::deinit()
-{
-  materials.flatMaterial.Unload();
-  meshes.cube.Unload();
-  meshes.stud.Unload();
-}
 
 Data data;
 
@@ -417,11 +353,6 @@ int main(int arg, char* argv[])
   renderer->camera().fovy = 45.0f;
   renderer->camera().projection = CAMERA_PERSPECTIVE;
 
-  int locThr = data.shaders.flatShading->GetLocation("yThreshold");
-
-  float thr = 0.3f;
-  data.shaders.flatShading->SetValue(locThr, &thr, SHADER_UNIFORM_FLOAT);
-
   rlImGuiSetup(true);
 
   SetTargetFPS(60);
@@ -485,7 +416,7 @@ int main(int arg, char* argv[])
     EndDrawing();
   }
 
-  data.deinit();
+  renderer->deinit();
 
   loader.save(model.get(), BASE_PATH "/model.yml");
 

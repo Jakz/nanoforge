@@ -50,22 +50,6 @@ struct Data
     static float LAYER2D_SPACING;
   };
 
-  struct Shaders
-  {
-    FlatShader flatShading;
-  } shaders;
-
-  struct Materials
-  {
-    raylib::Material flatMaterial;
-  } materials;
-
-  struct Meshes
-  {
-    raylib::Mesh cube;
-    raylib::Mesh stud;
-  } meshes;
-
   struct Colors : public std::map<ident_t, nb::PieceColor>
   {
     const nb::PieceColor* lime;
@@ -73,7 +57,6 @@ struct Data
   } colors;
 
   void init();
-  void deinit();
 };
 
 class Context;

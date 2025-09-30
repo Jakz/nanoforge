@@ -5,6 +5,56 @@
 
 extern Data data;
 
+auto vertShader = R"(
+#version 330
+
+layout(location=0) in vec3 vertexPosition;
+layout(location=1) in vec3 vertexNormal;
+layout(location=2) in mat4 instanceTransform;
+layout(location=6) in mat4 colorShades;
+
+uniform mat4 mvp;
+
+out vec3 vNormalWorld;
+flat out mat4 vColorShades;
+
+void main()
+{
+  mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
+  vNormalWorld = normalize(normalMatrix * vertexNormal);
+  vColorShades = colorShades;
+
+  gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
+}
+)";
+
+auto fragShader = R"(
+#version 330
+
+in vec3 vNormalWorld;
+flat in mat4 vColorShades;
+
+const float yThreshold = 0.3;
+
+out vec4 fragColor;
+
+void main()
+{
+  vec3 normal = normalize(vNormalWorld);
+  float isUp = step(yThreshold, normal.y);   // 1 se Y>=soglia, altrimenti 0
+  if (isUp > 0.5)
+  {
+    fragColor = vColorShades[0];
+  }
+  else
+  {      
+    fragColor = (normal.x > 0.0) ? vColorShades[2] : vColorShades[1];
+  }
+
+  // fragColor = vColorShades[0];
+}
+)";
+
 // Replica la trasform di DrawModel: T(pos) * R(rot) * S(scale) * model.transform
 static inline Matrix MakeDrawTransform(Vector3 pos, float scale, Matrix rot, const raylib::Matrix& modelMatrix) {
   Matrix S = MatrixScale(scale, scale, scale);
@@ -95,8 +145,28 @@ gfx::Renderer::Renderer(Context* context) : _context(context) { }
 
 void gfx::Renderer::init()
 {
-  _cubeBatch.setup(data.meshes.cube.vaoId);
-  _studBatch.setup(data.meshes.stud.vaoId);
+  meshes.cube = raylib::Mesh::Cube(side, height, side);
+  meshes.stud = raylib::Mesh::Cylinder(studDiameter / 2.0f, studHeight, 32);
+  meshes.cylinder = raylib::Mesh::Cylinder(side / 2, height, 32);
+
+  shaders.flatShading.shader = raylib::Shader::LoadFromMemory(vertShader, fragShader);
+  shaders.flatShading.shader.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading->GetLocation("mvp");
+  shaders.flatShading.locationInstanceTransform = shaders.flatShading->GetLocationAttrib("instanceTransform");
+  shaders.flatShading.locationColorShade = shaders.flatShading->GetLocationAttrib("colorShades");
+
+  materials.flatMaterial.shader = shaders.flatShading.shader;
+  
+  _cubeBatch.setup(&shaders.flatShading, meshes.cube.vaoId);
+  _cylinderBatch.setup(&shaders.flatShading, meshes.cylinder.vaoId);
+  _studBatch.setup(&shaders.flatShading, meshes.stud.vaoId);
+}
+
+void gfx::Renderer::deinit()
+{
+  materials.flatMaterial.Unload();
+  meshes.cube.Unload();
+  meshes.cylinder.Unload();
+  meshes.stud.Unload();
 }
 
 void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize)
@@ -213,7 +283,7 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
     DrawCubeEdgesFast(side, height, side, transforms[i - 1].matrix, piece.color()->edge());
   }
 
-  _cubeBatch.MyDrawMeshInstanced(data.meshes.cube, data.materials.flatMaterial, transforms);
+  _cubeBatch.MyDrawMeshInstanced(meshes.cube, materials.flatMaterial, transforms);
 }
 
 void gfx::Renderer::renderStuds()
@@ -221,7 +291,7 @@ void gfx::Renderer::renderStuds()
   if (_studData.empty())
     return;
 
-  _studBatch.MyDrawMeshInstanced(data.meshes.stud, data.materials.flatMaterial, _studData);
+  _studBatch.MyDrawMeshInstanced(meshes.stud, materials.flatMaterial, _studData);
 
   _studData.clear();
 }
@@ -308,7 +378,7 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
 }
 
 
-void gfx::Batch::setup(int vaoID)
+void gfx::Batch::setup(FlatShader* shader, int vaoID)
 {
   //glGenVertexArrays(1, &_vaoID);
   _vaoID = vaoID;
@@ -323,7 +393,7 @@ void gfx::Batch::setup(int vaoID)
   rlEnableVertexBuffer(_vboTransforms);
   for (unsigned int i = 0; i < 4; i++)
   {
-    auto baseLocation = ::data.shaders.flatShading.locationInstanceTransform;
+    auto baseLocation = shader->locationInstanceTransform;
     rlEnableVertexAttribute(baseLocation + i);
     rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
     rlSetVertexAttributeDivisor(baseLocation + i, 1);
@@ -332,7 +402,7 @@ void gfx::Batch::setup(int vaoID)
   rlEnableVertexBuffer(_vboColorShades);
   for (unsigned int i = 0; i < 4; i++)
   {
-    auto baseLocation = ::data.shaders.flatShading.locationColorShade;
+    auto baseLocation = shader->locationColorShade;
     rlEnableVertexAttribute(baseLocation + i);
     rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
     rlSetVertexAttributeDivisor(baseLocation + i, 1);
