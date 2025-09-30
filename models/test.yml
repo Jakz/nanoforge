@@ -1,22 +1,145 @@
-info:
-  name: Test Model
 pieces:
-  - id: piece1
-    type: square1x1
-    color: white
-    position: [0, 0, 0]
-  - id: piece2
-    type: square1x1
-    color: brown
-    size: [1, 2]
-    position: [0, 0, 1]
-  - id: piece2
-    type: square1x1
-    color: lime
-    size: [3, 1]
-    position: [0, 1, 0]
-  - id: piece2
-    type: square1x1
-    color: yellow
-    size: [3, 1]
-    position: [1, 0, 0]
+  -
+    - position
+    -
+      - 0
+      - 0
+      - 0
+    - size
+    -
+      - 1
+      - 1
+    - color
+    - white
+  -
+    - position
+    -
+      - 0
+      - 0
+      - 1
+    - size
+    -
+      - 1
+      - 2
+    - color
+    - brown
+  -
+    - position
+    -
+      - 0
+      - 1
+      - 0
+    - size
+    -
+      - 3
+      - 1
+    - color
+    - lime
+  -
+    - position
+    -
+      - 0
+      - 0
+      - 6
+    - size
+    -
+      - 3
+      - 2
+    - color
+    - lime
+  -
+    - position
+    -
+      - 1
+      - 0
+      - 0
+    - size
+    -
+      - 3
+      - 1
+    - color
+    - yellow
+  -
+    - position
+    -
+      - 1
+      - 1
+      - 5
+    - size
+    -
+      - 3
+      - 2
+    - color
+    - lime
+  -
+    - position
+    -
+      - 1
+      - 1
+      - 7
+    - size
+    -
+      - 3
+      - 2
+    - color
+    - lime
+  -
+    - position
+    -
+      - 2
+      - 4
+      - 2
+    - size
+    -
+      - 3
+      - 2
+    - color
+    - lime
+  -
+    - position
+    -
+      - 2
+      - 4
+      - 5
+    - size
+    -
+      - 3
+      - 2
+    - color
+    - lime
+  -
+    - position
+    -
+      - 3
+      - 2
+      - 3
+    - size
+    -
+      - 1
+      - 1
+    - color
+    - lime
+  -
+    - position
+    -
+      - 3
+      - 5
+      - 5
+    - size
+    -
+      - 3
+      - 2
+    - color
+    - lime
+  -
+    - position
+    -
+      - 3
+      - 5
+      - 2
+    - size
+    -
+      - 3
+      - 2
+    - color
+    - lime

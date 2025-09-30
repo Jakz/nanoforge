@@ -26,6 +26,7 @@ namespace nb
 
     layer_index_t index() const { return _index; }
     const auto& pieces() const { return _pieces; }
+    auto& pieces() { return _pieces; }
 
     const Layer* prev() const { return _prev; }
 
@@ -46,6 +47,8 @@ namespace nb
     void linkLayers(Layer* prev, Layer* next);
 
   public:
+    Model(const std::string& name = "") { _info.name = name; }
+
     void addLayer(layer_index_t index);
     void prepareLayers(layer_index_t count);
     void addPiece(layer_index_t layerIndex, const Piece& piece);
@@ -55,6 +58,8 @@ namespace nb
     
     Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
     const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
+
+    void shift(Direction direction);
     
     const auto& layers() const { return _layers; }
     

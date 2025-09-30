@@ -53,7 +53,7 @@ namespace gfx
 
   public:
     static constexpr int EDGE_COMPLEXITY = 6;
-    static constexpr int MOCK_LAYER_SIZE = 10;
+    static constexpr int MOCK_LAYER_SIZE = 16;
 
     void render(const nb::Model* model);
 

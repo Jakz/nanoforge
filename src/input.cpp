@@ -133,6 +133,19 @@ void InputHandler::keyDown(int key)
   {
     _context->model->addLayerOnTop();
   }
+
+
+  //TODO: check validity
+  else if (key == KEY_UP)
+    _context->model->shift(Direction::North);
+  else if (key == KEY_RIGHT)
+    _context->model->shift(Direction::East);
+  else if (key == KEY_DOWN)
+    _context->model->shift(Direction::South);
+  else if (key == KEY_LEFT)
+    _context->model->shift(Direction::West);
+
+
   else if (key >= KEY_ZERO && key <= KEY_NINE)
   {
     int index = (key == KEY_ZERO) ? 9 : (key - KEY_ONE);

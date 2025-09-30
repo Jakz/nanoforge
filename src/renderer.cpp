@@ -143,7 +143,7 @@ void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_
   if (_context->input->hover())
   {
     const coord3d_t& hover = *_context->input->hover();
-    if (hover.z == layer->index())
+    if (hover.z == layer->index() || _context->prefs.ui.drawHoverOnAllLayers)
     {
       vec2 pos = vec2(base.x + hover.x * cellSize.width, base.y + hover.y * cellSize.height);
       vec2 size = vec2(cellSize.width * _context->brush->width(), cellSize.height * _context->brush->height());

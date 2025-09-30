@@ -51,6 +51,10 @@ namespace nb
     void swapSize() { _size = size2d_t(_size.height, _size.width); }
 
     void moveAt(coord2d_t coord) { _coord = coord; }
+    void moveBy(coord2d_t delta) { _coord += delta; }
+
+    void moveBy(coord_t x, coord_t y) { _coord += coord2d_t(x, y); }
+
 
     void dye(const PieceColor* color) { _color = color; }
 

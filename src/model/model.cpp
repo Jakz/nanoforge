@@ -88,3 +88,18 @@ void nb::Model::remove(const Piece* p)
     }
   }
 }
+
+void nb::Model::shift(Direction direction)
+{
+  for (const auto& layer : _layers)
+    for (auto& piece : layer->pieces())
+    {
+      switch (direction)
+      {
+        case Direction::North: piece.moveBy(+0, -1); break;
+        case Direction::East: piece.moveBy(+1, 0); break;
+        case Direction::South: piece.moveBy(0, +1); break;
+        case Direction::West: piece.moveBy(-1, 0); break;
+      }
+    }
+}

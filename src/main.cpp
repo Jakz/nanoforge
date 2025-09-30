@@ -1,6 +1,6 @@
-//#include "imgui.h"
+//
 #include "raylib.hpp"
-//#include "rlImGui.h"
+
 #include "Matrix.hpp"
 #include "Window.hpp"
 #include "Mesh.hpp"
@@ -23,8 +23,11 @@
 #include "model/piece.h"
 #include "model/model.h"
 
-#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
-//#define BASE_PATH "../../models"
+#include "imgui.h"
+#include "rlImGui.h"
+
+//#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
+#define BASE_PATH "../../models"
 
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
@@ -231,6 +234,9 @@ void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
 
 std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
 {
+  if (!std::filesystem::exists(file))
+    return nb::Model("Model");
+  
   /* get file length through std::filesystem api */
   auto length = std::filesystem::file_size(file);
 
@@ -292,6 +298,97 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
   return std::optional<nb::Model>();
 }
 
+
+static inline ImVec4 ToImVec4(Color c) {
+  return ImVec4(c.r / 255.f, c.g / 255.f, c.b / 255.f, c.a / 255.f);
+}
+
+const nb::PieceColor* ImGuiPaletteWindow(const char* title,
+  const std::vector<const nb::PieceColor*>& colors,
+  int columns,
+  const nb::PieceColor* selected = nullptr,
+  float cellSize = 28.0f,
+  float cellRounding = 4.0f,
+  float cellSpacing = 6.0f)
+{
+  if (columns < 1) columns = 1;
+
+  int clickedIndex = -1;
+
+  if (ImGui::Begin(title)) {
+    // Layout: griglia compatta
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(cellSpacing, cellSpacing));
+
+    for (int i = 0; i < (int)colors.size(); ++i) {
+      ImGui::PushID(i);
+
+      ImVec4 col = ToImVec4(colors[i]->top());
+
+      ImGuiColorEditFlags flags =
+        ImGuiColorEditFlags_NoTooltip |
+        ImGuiColorEditFlags_NoDragDrop |
+        ImGuiColorEditFlags_NoAlpha;
+
+      // Forziamo la dimensione del bottone colore
+      ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, cellRounding);
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+      // Hitbox invisibile con draw manuale del bordo selezione
+      ImGui::InvisibleButton("cell", ImVec2(cellSize, cellSize));
+      bool hovered = ImGui::IsItemHovered();
+      bool pressed = ImGui::IsItemClicked();
+
+      // Disegno del quad colorato
+      ImDrawList* dl = ImGui::GetWindowDrawList();
+      ImVec2 p0 = ImGui::GetItemRectMin();
+      ImVec2 p1 = ImGui::GetItemRectMax();
+      ImU32 ucol = ImGui::GetColorU32(col);
+
+      dl->AddRectFilled(p0, p1, ucol, cellRounding);
+
+      bool isSelected = (selected && selected == colors[i]);
+
+      if (hovered || isSelected)
+      {
+        ImU32 borderCol = ImGui::GetColorU32(hovered ? ImVec4(1, 1, 1, 1) : ImVec4(0.9f, 0.9f, 0.9f, 1));
+        dl->AddRect(p0, p1, borderCol, cellRounding, 0, 4.0f);
+      }
+      else
+      {
+        // sottile bordo scuro per separare le celle
+        dl->AddRect(p0, p1, ImGui::GetColorU32(ImVec4(0, 0, 0, 0.35f)), cellRounding, 0, 1.0f);
+      }
+
+      // Tooltip
+      if (hovered)
+      {
+        const Color& c = colors[i]->top();
+        ImGui::BeginTooltip();
+        ImGui::Text("%s - RGB(%d, %d, %d)", colors[i]->ident.c_str(), c.r, c.g, c.b);
+        ImGui::EndTooltip();
+      }
+
+      if (pressed) {
+        clickedIndex = i;
+      }
+
+      ImGui::PopStyleVar(2);
+
+      // Gestione colonne (same-line tranne a fine riga)
+      int colIdx = (i % columns);
+      if (colIdx != columns - 1)
+        ImGui::SameLine();
+
+      ImGui::PopID();
+    }
+
+    ImGui::PopStyleVar(); // ItemSpacing
+  }
+  ImGui::End();
+
+  return clickedIndex >= 0 ? colors[clickedIndex] : nullptr;
+}
+
 int main(int arg, char* argv[])
 {  
   Context context;
@@ -308,7 +405,7 @@ int main(int arg, char* argv[])
   renderer->init();
 
   Loader loader;
-  auto result = loader.load(BASE_PATH "/test.yml");
+  auto result = loader.load(BASE_PATH "/model.yml");
   if (result)
     *context.model = std::move(*result);
 
@@ -325,7 +422,7 @@ int main(int arg, char* argv[])
   float thr = 0.3f;
   data.shaders.flatShading->SetValue(locThr, &thr, SHADER_UNIFORM_FLOAT);
 
-  //rlImGuiSetup(true);
+  rlImGuiSetup(true);
 
   SetTargetFPS(60);
 
@@ -371,10 +468,17 @@ int main(int arg, char* argv[])
       DrawText(coordStr.c_str(), 10, GetScreenHeight() - 30, 14, DARKGRAY);
     }
 
-    /*rlImGuiBegin();
+    rlImGuiBegin();
     bool open = true;
-    ImGui::ShowDemoWindow(&open);
-    rlImGuiEnd();*/
+    
+    std::vector<const nb::PieceColor*> colors;
+    for (const auto& c : data.colors)
+      colors.push_back(&c.second);
+    auto newSelection = ImGuiPaletteWindow("Palette", colors, 5, context.brush->color());
+    if (newSelection)
+      context.brush->dye(newSelection);
+
+    rlImGuiEnd();
 
     input->handle(model.get());
 
@@ -383,7 +487,7 @@ int main(int arg, char* argv[])
 
   data.deinit();
 
-  loader.save(model.get(), BASE_PATH "/test_out.yml");
+  loader.save(model.get(), BASE_PATH "/model.yml");
 
   CloseWindow();
   return 0;

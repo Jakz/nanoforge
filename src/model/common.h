@@ -6,12 +6,17 @@
 using layer_index_t = int32_t;
 using coord_t = int32_t;
 
+enum class Direction { North, East, South, West };
+
 struct coord2d_t
 {
   coord_t x;
   coord_t y;
 
   coord2d_t(coord_t x = 0, coord_t y = 0) : x(x), y(y) { }
+
+  coord2d_t operator+(const coord2d_t& c) const { return coord2d_t(x + c.x, y + c.y); }
+  coord2d_t operator+=(const coord2d_t& c) { x += c.x; y += c.y; return *this; }
 };
 
 struct coord3d_t
