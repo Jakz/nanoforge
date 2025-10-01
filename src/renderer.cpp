@@ -145,10 +145,6 @@ gfx::Renderer::Renderer(Context* context) : _context(context) { }
 
 void gfx::Renderer::init()
 {
-  meshes.cube = raylib::Mesh::Cube(side, height, side);
-  meshes.stud = raylib::Mesh::Cylinder(studDiameter / 2.0f, studHeight, 32);
-  meshes.cylinder = raylib::Mesh::Cylinder(side / 2, height, 32);
-
   shaders.flatShading.shader = raylib::Shader::LoadFromMemory(vertShader, fragShader);
   shaders.flatShading.shader.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading->GetLocation("mvp");
   shaders.flatShading.locationInstanceTransform = shaders.flatShading->GetLocationAttrib("instanceTransform");
@@ -156,17 +152,25 @@ void gfx::Renderer::init()
 
   materials.flatMaterial.shader = shaders.flatShading.shader;
   
-  _cubeBatch.setup(&shaders.flatShading, meshes.cube.vaoId);
-  _cylinderBatch.setup(&shaders.flatShading, meshes.cylinder.vaoId);
-  _studBatch.setup(&shaders.flatShading, meshes.stud.vaoId);
+  _cubeBatch.setup(raylib::MeshUnmanaged::Cube(side, height, side), &shaders.flatShading);
+  _cylinderBatch.setup(raylib::MeshUnmanaged::Cylinder(side / 2, height, 32), &shaders.flatShading);
+  _studBatch.setup(raylib::MeshUnmanaged::Cylinder(studDiameter / 2.0f, studHeight, 32), &shaders.flatShading);
+
+  /* we need to shift all vertices of cylinder because it's zero aligned */
+  for (int i = 0; i < _cylinderBatch.mesh().vertexCount; ++i)
+    _cylinderBatch.mesh().vertices[i * 3 + 1] -= height * 0.5f;
+  rlEnableVertexArray(_cylinderBatch.mesh().vaoId);
+  rlUpdateVertexBuffer(*_cylinderBatch.mesh().vboId, _cylinderBatch.mesh().vertices, _cylinderBatch.mesh().vertexCount * 3 * sizeof(float), 0);
+  rlDisableVertexArray();
+
+  _shapeBatches.resize(2);
+  _shapeBatches[0] = &_cubeBatch;
+  _shapeBatches[1] = &_cylinderBatch;
 }
 
 void gfx::Renderer::deinit()
 {
   materials.flatMaterial.Unload();
-  meshes.cube.Unload();
-  meshes.cylinder.Unload();
-  meshes.stud.Unload();
 }
 
 void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize)
@@ -225,7 +229,8 @@ void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_
 
 void gfx::Renderer::render(const nb::Model* model)
 {
-  _studData.clear();
+  _studBatch.instanceData().clear();
+
   renderModel(model);
   renderStuds();
 }
@@ -254,8 +259,6 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
   /* compute the matrix for the layer */
   raylib::Matrix layerTransform = raylib::Matrix::Translate(0.0f, layer->index() * height, 0.0f);
 
-  std::vector<InstanceData> transforms(layer->pieces().size());
-
   size_t i = 0;
   for (const nb::Piece& piece : layer->pieces())
   {
@@ -265,39 +268,41 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
     for (int y = 0; y < piece.height(); ++y)
       for (int x = 0; x < piece.width(); ++x)
       {
-        _studData.push_back({ layerTransform * raylib::Matrix::Translate((piece.x() + x + 0.5f) * side, height, (piece.y() + y + 0.5f) * side), piece.color() });
+        _studBatch.instanceData().push_back({layerTransform * raylib::Matrix::Translate((piece.x() + x + 0.5f) * side, height, (piece.y() + y + 0.5f) * side), piece.color()});
 
         raylib::Vector3 center = raylib::Vector3::Zero();
-        center = center.Transform(_studData.back().matrix);
+        center = center.Transform(_studBatch.instanceData().back().matrix);
 
         DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece.color()->edge(), MatrixIdentity(), _camera);
       }
 
 
     pieceTransform = raylib::Matrix::Scale(piece.width(), 1.0f, piece.height()) * pieceTransform;
- 
-    /* combine layer and piece matrix */
-    transforms[i] = { layerTransform * pieceTransform, piece.color() };
-    ++i;
+    auto finalTransform = layerTransform * pieceTransform;
+    
+    if (piece.type() == nb::PieceType::Round)
+      _cylinderBatch.instanceData().push_back({ finalTransform, piece.color() });
+    else
+      _cubeBatch.instanceData().push_back({ finalTransform, piece.color() });
 
-    DrawCubeEdgesFast(side, height, side, transforms[i - 1].matrix, piece.color()->edge());
+    DrawCubeEdgesFast(side, height, side, finalTransform, piece.color()->edge());
   }
 
-  _cubeBatch.MyDrawMeshInstanced(meshes.cube, materials.flatMaterial, transforms);
+  _cubeBatch.draw(materials.flatMaterial);
+  _cylinderBatch.draw(materials.flatMaterial);
 }
 
 void gfx::Renderer::renderStuds()
 {
-  if (_studData.empty())
-    return;
-
-  _studBatch.MyDrawMeshInstanced(meshes.stud, materials.flatMaterial, _studData);
-
-  _studData.clear();
+  _studBatch.draw(materials.flatMaterial);
+  _studBatch.instanceData().clear();
 }
 
 void gfx::Renderer::renderModel(const nb::Model* model)
 {
+  _cylinderBatch.instanceData().clear();
+  _cubeBatch.instanceData().clear();
+  
   for (const auto& layer : model->layers())
     renderLayer(layer.get());
 
@@ -306,8 +311,16 @@ void gfx::Renderer::renderModel(const nb::Model* model)
 
 #include "glad/glad.h"
 
-void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const std::vector<InstanceData>& data)
+gfx::Batch::~Batch()
 {
+  //_mesh.Unload();
+}
+
+void gfx::Batch::draw(const Material& material)
+{
+  if (_instanceData.empty())
+    return;
+  
   constexpr size_t MAX_MATERIAL_MAPS = 4;
 
   // Instancing required variables
@@ -331,7 +344,7 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
     rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_NORMAL], MatrixTranspose(MatrixInvert(matModel)));
 
 
-  update(mesh, data);
+  update(_mesh);
   
   // Try binding vertex array objects (VAO)
   // or use VBOs if not possible
@@ -344,10 +357,10 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
   rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_MVP], matModelViewProjection);
 
   // Draw mesh instanced
-  if (mesh.indices != NULL)
-    rlDrawVertexArrayElementsInstanced(0, mesh.triangleCount * 3, 0, data.size());
+  if (_mesh.indices != NULL)
+    rlDrawVertexArrayElementsInstanced(0, _mesh.triangleCount * 3, 0, _instanceData.size());
   else
-    rlDrawVertexArrayInstanced(0, mesh.vertexCount, data.size());
+    rlDrawVertexArrayInstanced(0, _mesh.vertexCount, _instanceData.size());
 
   // Unbind all bound texture maps
   for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
@@ -378,10 +391,11 @@ void gfx::Batch::MyDrawMeshInstanced(const Mesh& mesh, const Material& material,
 }
 
 
-void gfx::Batch::setup(FlatShader* shader, int vaoID)
+void gfx::Batch::setup(raylib::MeshUnmanaged&& mesh, FlatShader* shader)
 {
   //glGenVertexArrays(1, &_vaoID);
-  _vaoID = vaoID;
+  _mesh = std::move(mesh);
+  _vaoID = mesh.vaoId;
   glBindVertexArray(_vaoID);
 
   glGenBuffers(3, &_vboIDs[0]);
@@ -416,34 +430,35 @@ void gfx::Batch::setup(FlatShader* shader, int vaoID)
 
 void gfx::Batch::release()
 {
+  _mesh.Unload();
   glDeleteBuffers(3, &_vboIDs[0]);
 }
 
-void gfx::Batch::update(const Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData)
+void gfx::Batch::update(const Mesh& mesh)
 {
-  const size_t count = instancesData.size();
+  const size_t count = _instanceData.size();
   
   rlEnableVertexArray(_vaoID);
 
   //glBindBuffer(GL_ARRAY_BUFFER, _vboVertices);
   //glBufferData(GL_ARRAY_BUFFER, mesh.vertexCount * sizeof(Vector3), mesh.vertices, GL_STATIC_DRAW);
 
-  _transformsData.resize(instancesData.size());
+  _transformsData.resize(_instanceData.size());
   for (int i = 0; i < count; i++)
-    _transformsData[i] = MatrixToFloatV(instancesData[i].matrix);
+    _transformsData[i] = MatrixToFloatV(_instanceData[i].matrix);
   
   glBindBuffer(GL_ARRAY_BUFFER, _vboTransforms);
   glBufferData(GL_ARRAY_BUFFER, _transformsData.size() * sizeof(float16), _transformsData.data(), GL_STATIC_DRAW);
 
-  _colorShadesData.resize(instancesData.size());
+  _colorShadesData.resize(_instanceData.size());
   for (int i = 0; i < count; ++i)
   {
     for (int j = 0; j < 4; ++j)
     {
-      _colorShadesData[i].v[j * 4 + 0] = instancesData[i].color->colors[j].r / 255.0f;
-      _colorShadesData[i].v[j * 4 + 1] = instancesData[i].color->colors[j].g / 255.0f;
-      _colorShadesData[i].v[j * 4 + 2] = instancesData[i].color->colors[j].b / 255.0f;
-      _colorShadesData[i].v[j * 4 + 3] = instancesData[i].color->colors[j].a / 255.0f;
+      _colorShadesData[i].v[j * 4 + 0] = _instanceData[i].color->colors[j].r / 255.0f;
+      _colorShadesData[i].v[j * 4 + 1] = _instanceData[i].color->colors[j].g / 255.0f;
+      _colorShadesData[i].v[j * 4 + 2] = _instanceData[i].color->colors[j].b / 255.0f;
+      _colorShadesData[i].v[j * 4 + 3] = _instanceData[i].color->colors[j].a / 255.0f;
     }
   }
   

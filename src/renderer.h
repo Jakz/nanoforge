@@ -19,6 +19,8 @@ namespace gfx
 
   class Batch
   {
+    raylib::MeshUnmanaged _mesh;
+    
     unsigned int _vaoID;
     unsigned int _vboIDs[3];
 
@@ -28,12 +30,19 @@ namespace gfx
     std::vector<float16> _colorShadesData;
     std::vector<float16> _transformsData;
 
-    void update(const Mesh& mesh, const std::vector<gfx::InstanceData>& instancesData);
+    std::vector<InstanceData> _instanceData;
+
+    void update(const Mesh& mesh);
 
   public:
-    void setup(FlatShader* shader, int vaoID);
+    ~Batch();
+
+    void setup(raylib::MeshUnmanaged&& mesh, FlatShader* shader);
     void release();
-    void MyDrawMeshInstanced(const Mesh& mesh, const Material& material, const std::vector<InstanceData>& data);
+    void draw(const Material& material);
+
+    auto& mesh() { return _mesh; }
+    auto& instanceData() { return _instanceData; }
   };
 
   class Renderer
@@ -46,18 +55,12 @@ namespace gfx
     Context* _context;
 
     raylib::Camera3D _camera;
-    std::vector<InstanceData> _studData;
 
     Batch _cubeBatch;
     Batch _cylinderBatch;
     Batch _studBatch;
 
-    struct Meshes
-    {
-      raylib::Mesh cube;
-      raylib::Mesh cylinder;
-      raylib::Mesh stud;
-    } meshes;
+    std::vector<Batch*> _shapeBatches;
 
     struct Shaders
     {

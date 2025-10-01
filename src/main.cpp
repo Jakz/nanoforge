@@ -155,6 +155,9 @@ void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
         { "size", fkyaml::node::sequence({ piece.width(), piece.height() }) },
         { "color", piece.color()->ident }
       };
+
+      if (piece.type() == nb::PieceType::Round)
+        node["type"] = "round";
       
 
       pieces.emplace_back(std::move(node));
@@ -209,6 +212,7 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
       int x = p["position"][1].as_int();
       int y = p["position"][2].as_int();
       const nb::PieceColor* color = data.colors.white;
+      nb::PieceType type = nb::PieceType::Square;
 
       size2d_t size = size2d_t(1, 1);
 
@@ -225,7 +229,13 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
           color = &it->second;
       }
 
-      model.addPiece(z, nb::Piece(coord2d_t(x, y), color, nb::PieceOrientation::North, size));
+      if (p["type"].is_string())
+      {
+        if (p["type"] == "round")
+          type = nb::PieceType::Round;
+      }
+
+      model.addPiece(z, nb::Piece(coord2d_t(x, y), color, nb::PieceOrientation::North, type, size));
     }
 
     return model;
@@ -345,7 +355,7 @@ int main(int arg, char* argv[])
   if (result)
     *context.model = std::move(*result);
 
-  context.brush.reset(new nb::Piece(coord2d_t(0, 0), data.colors.lime, nb::PieceOrientation::North, size2d_t(1, 1)));
+  context.brush.reset(new nb::Piece(coord2d_t(0, 0), data.colors.lime, nb::PieceOrientation::North, nb::PieceType::Square, size2d_t(1, 1)));
 
   renderer->camera().target = { gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f,  0.0f,  gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f };
   renderer->camera().position = { renderer->camera().target.x * 4.0f, renderer->camera().target.x * 2.0f, renderer->camera().target.y * 4.0f };

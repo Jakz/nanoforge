@@ -15,6 +15,12 @@ namespace nb
     North = 0x01, East = 0x02, South = 0x04, West = 0x08
   };
 
+  enum class PieceType
+  {
+    Square,
+    Round
+  };
+
   struct PieceColor
   {
     ident_t ident;
@@ -39,13 +45,14 @@ namespace nb
   {
     const PieceColor* _color;
     PieceOrientation _orientation;
+    PieceType _type;
     coord2d_t _coord;
     size2d_t _size;
 
   public:
     Piece() : _coord(0, 0), _color(nullptr), _orientation(PieceOrientation::North), _size(1, 1) { }
-    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, size2d_t size = size2d_t(1, 1)) :
-      _coord(coord), _color(color), _orientation(orientation), _size(size) { }
+    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, PieceType type = PieceType::Square, size2d_t size = size2d_t(1, 1)) :
+      _coord(coord), _color(color), _orientation(orientation), _type(type), _size(size) { }
     
     void resize(size2d_t size) { _size = size; }
     void swapSize() { _size = size2d_t(_size.height, _size.width); }
@@ -73,7 +80,7 @@ namespace nb
     coord_t y() const { return _coord.y; }
     const PieceColor* color() const { return _color; }
     size2d_t size() const { return _size; }
-    
+    PieceType type() const { return _type; }
 
     int32_t width() const { return _size.width; }
     int32_t height() const { return _size.height; }
