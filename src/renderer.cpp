@@ -5,6 +5,32 @@
 
 extern Data data;
 
+
+nb::layer_iterator_t gfx::TopDownGrid::begin() const
+{
+  layer_index_t topMostLayer = std::min(
+    _context->renderer->_topDown._offset + _context->renderer->_topDown._shown - 1,
+    _context->model->lastLayerIndex()
+  );
+
+  layer_index_t shown = std::min(
+    topMostLayer,
+    _context->model->layerCount()
+  );
+
+  return nb::layer_iterator_t(topMostLayer, 0);
+}
+
+nb::layer_iterator_t gfx::TopDownGrid::end() const
+{
+  layer_index_t topMostLayer = std::min(
+    _context->renderer->_topDown._offset + _context->renderer->_topDown._shown - 1,
+    _context->model->lastLayerIndex()
+  );
+  
+  return nb::layer_iterator_t(topMostLayer, _shown);
+}
+
 auto vertShader = R"(
 #version 330
 
@@ -21,7 +47,7 @@ flat out mat4 vColorShades;
 void main()
 {
   mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
-  vNormalWorld = normalize(normalMatrix * vertexNormal);
+  vNormalWorld = normalize(mat3(instanceTransform) * vertexNormal);
   vColorShades = colorShades;
 
   gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
@@ -36,7 +62,7 @@ flat in mat4 vColorShades;
 
 const float yThreshold = 0.3;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main()
 {
@@ -51,7 +77,7 @@ void main()
     fragColor = (normal.x > 0.0) ? vColorShades[2] : vColorShades[1];
   }
 
-  // fragColor = vColorShades[0];
+  fragColor = vColorShades[0];
 }
 )";
 
@@ -141,7 +167,7 @@ constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
 constexpr float studDiameter = 2.5f;
 
-gfx::Renderer::Renderer(Context* context) : _context(context) { }
+gfx::Renderer::Renderer(Context* context) : _context(context), _topDown(context) { }
 
 void gfx::Renderer::init()
 {
@@ -281,11 +307,20 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
     auto finalTransform = layerTransform * pieceTransform;
     
     if (piece.type() == nb::PieceType::Round)
+    {
       _cylinderBatch.instanceData().push_back({ finalTransform, piece.color() });
-    else
-      _cubeBatch.instanceData().push_back({ finalTransform, piece.color() });
 
-    DrawCubeEdgesFast(side, height, side, finalTransform, piece.color()->edge());
+      raylib::Vector3 center = vec3(0.0f, -height / 2.0f, 0.0f);
+      center = center.Transform(finalTransform);
+
+      DrawCylinderWireframe(center, side / 2, height, 32, piece.color()->edge(), MatrixIdentity(), _camera);
+    }
+    else
+    {
+      _cubeBatch.instanceData().push_back({ finalTransform, piece.color() });
+      DrawCubeEdgesFast(side, height, side, finalTransform, piece.color()->edge());
+    }
+
   }
 
   _cubeBatch.draw(materials.flatMaterial);

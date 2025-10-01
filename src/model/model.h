@@ -72,4 +72,27 @@ namespace nb
     Piece* piece(const coord3d_t& coord) const;
     void remove(const Piece* piece);
   };
+
+  struct layer_iterator_t
+  {
+  protected:
+    layer_index_t _topMost;
+    layer_index_t _i;
+
+  public:
+    using value_type = std::pair<layer_index_t, layer_index_t>;
+
+    layer_iterator_t(layer_index_t topMost, layer_index_t i = 0) : _topMost(topMost), _i(i) { }
+
+    value_type operator*() const
+    {
+      return { static_cast<layer_index_t>(_i), static_cast<layer_index_t>(_topMost - _i) };
+    }
+
+    layer_iterator_t& operator++() { ++_i; return *this; }
+    bool operator!=(const layer_iterator_t& other) const { return _i != other._i; }
+
+    auto index() const { return _topMost - _i; }
+    auto relative() const { return _i; }
+  };
 }

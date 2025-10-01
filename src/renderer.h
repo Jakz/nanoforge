@@ -45,6 +45,21 @@ namespace gfx
     auto& instanceData() { return _instanceData; }
   };
 
+  class TopDownGrid
+  {
+  protected:
+    Context* _context;
+
+  public:
+    layer_index_t _offset;
+    layer_index_t _shown;
+
+    TopDownGrid(Context* context) : _context(context), _offset(0), _shown(4) { }
+
+    nb::layer_iterator_t begin() const;
+    nb::layer_iterator_t end() const;
+  };
+
   class Renderer
   {
   public:
@@ -94,6 +109,7 @@ namespace gfx
     void init();
     void deinit();
 
+    TopDownGrid _topDown;
     void renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize);
   };
 }

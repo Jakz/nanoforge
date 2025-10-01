@@ -35,7 +35,7 @@
 #define LOG(msg, ...)   printf("[nanoforge] " msg "\n", ##__VA_ARGS__)
 
 
-size2d_t Data::Constants::LAYER2D_CELL_SIZE = size2d_t(16.0f, 16.0f);
+size2d_t Data::Constants::LAYER2D_CELL_SIZE = size2d_t(12.0f, 12.0f);
 vec2 Data::Constants::LAYER2D_BASE = vec2(10.0f, 10.0f);
 float Data::Constants::LAYER2D_SPACING = 10.0f;
 
@@ -369,8 +369,6 @@ int main(int arg, char* argv[])
 
   while (!WindowShouldClose())
   {
-    UpdateCamera(&renderer->camera(), CAMERA_ORBITAL);
-
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
@@ -395,13 +393,16 @@ int main(int arg, char* argv[])
 
     EndMode3D();
 
-    for (layer_index_t i = 0; i < model->layerCount(); ++i)
+    for (auto it = renderer->_topDown.begin(); it != renderer->_topDown.end(); ++it)
     {
-      auto idx = model->lastLayerIndex() - i;
-      float y = (gfx::Renderer::MOCK_LAYER_SIZE * Data::Constants::LAYER2D_CELL_SIZE.height) * i + (Data::Constants::LAYER2D_SPACING * i);
-      renderer->renderLayerGrid2d(Data::Constants::LAYER2D_BASE + vec2(0, y), model->layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), Data::Constants::LAYER2D_CELL_SIZE);
+      auto idx = it.index();
+      if (idx >= 0)
+      {
+        float y = (gfx::Renderer::MOCK_LAYER_SIZE * Data::Constants::LAYER2D_CELL_SIZE.height) * it.relative() + (Data::Constants::LAYER2D_SPACING * it.relative());
+        renderer->renderLayerGrid2d(Data::Constants::LAYER2D_BASE + vec2(0, y), model->layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), Data::Constants::LAYER2D_CELL_SIZE);
+      }
     }
-   
+
     if (input->hover())
     {
       /* draw string with coordinate in bottom left corner */
@@ -422,6 +423,8 @@ int main(int arg, char* argv[])
     rlImGuiEnd();
 
     input->handle(model.get());
+
+    UpdateCamera(&renderer->camera(), CAMERA_ORBITAL);
 
     EndDrawing();
   }

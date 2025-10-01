@@ -53,7 +53,7 @@ void InputHandler::handle(nb::Model* model)
     {
       auto relative = position - bounds.Origin();
       coord2d_t cell = coord2d_t(relative.x / Data::Constants::LAYER2D_CELL_SIZE.width, relative.y / Data::Constants::LAYER2D_CELL_SIZE.height);
-      _hover = coord3d_t(cell, model->lastLayerIndex() - i);
+      _hover = coord3d_t(cell, _context->renderer->_topDown.begin().index() - i);
       any = true;
       break;
     }
@@ -75,6 +75,17 @@ void InputHandler::handle(nb::Model* model)
     }
   }
   _mouseState = newState;
+
+  /* scroll top down grid */
+  float v = GetMouseWheelMove();
+  if (v && _hover)
+  {
+    if (v < 0 && _context->renderer->_topDown._offset > 0)
+      --_context->renderer->_topDown._offset;
+    else if (v > 0 && _context->renderer->_topDown._offset + _context->renderer->_topDown._shown < model->layerCount())
+      ++_context->renderer->_topDown._offset;
+
+  }
 }
 
 void InputHandler::mouseDown(MouseButton button)
