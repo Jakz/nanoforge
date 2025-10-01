@@ -24,6 +24,7 @@
 #include "model/model.h"
 
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "rlImGui.h"
 
 //#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
@@ -36,7 +37,6 @@
 
 
 size2d_t Data::Constants::LAYER2D_CELL_SIZE = size2d_t(12.0f, 12.0f);
-vec2 Data::Constants::LAYER2D_BASE = vec2(10.0f, 10.0f);
 float Data::Constants::LAYER2D_SPACING = 10.0f;
 
 
@@ -296,8 +296,7 @@ const nb::PieceColor* ImGuiPaletteWindow(const char* title,
 
       if (hovered || isSelected)
       {
-        ImU32 borderCol = ImGui::GetColorU32(hovered ? ImVec4(1, 1, 1, 1) : ImVec4(0.9f, 0.9f, 0.9f, 1));
-        dl->AddRect(p0, p1, borderCol, cellRounding, 0, 4.0f);
+        dl->AddRect(p0, p1, ImGui::GetColorU32(ToImVec4(colors[i]->edge())), cellRounding, 0, hovered ? 8.0f : 6.0f);
       }
       else
       {
@@ -335,6 +334,91 @@ const nb::PieceColor* ImGuiPaletteWindow(const char* title,
   return clickedIndex >= 0 ? colors[clickedIndex] : nullptr;
 }
 
+static bool IconButton(const char* id, ImTextureID tex, const ImVec2& uv0, const ImVec2& uv1,
+  const ImVec2& size, bool enabled = true, const char* tooltip = nullptr)
+{
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);    // no bordo
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);      // angoli arrotondati
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));// padding interno ridotto
+  
+  if (!enabled) 
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+
+  bool pressed = ImGui::ImageButton(id, tex, size, uv0, uv1, ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1)) && enabled;
+
+  if (tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+    ImGui::SetTooltip("%s", tooltip);
+
+  if (!enabled)
+    ImGui::PopStyleVar();
+
+  ImGui::PopStyleVar(3);
+
+  return pressed;
+}
+
+void DrawToolbar(Context* _context, Texture2D atlas, Rectangle uvNew, Rectangle uvOpen, Rectangle uvSave,
+  Rectangle uvPlay, Rectangle uvPause, Rectangle uvStop,
+  bool canSave, bool isPlaying)
+{
+  ImGuiIO& io = ImGui::GetIO();
+  // finestra a tutta larghezza, senza bordi
+  ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+  ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, _context->prefs.ui.toolbar.height));
+  ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+    ImGuiWindowFlags_NoSavedSettings;
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
+  ImGui::Begin("Toolbar", nullptr, flags);
+
+  auto toUV = [&](Rectangle r) {
+    ImVec2 uv0(r.x / atlas.width, r.y / atlas.height);
+    ImVec2 uv1((r.x + r.width) / atlas.width, (r.y + r.height) / atlas.height);
+    return std::pair{ uv0, uv1 };
+    };
+  auto [uv0New, uv1New] = toUV(uvNew);
+  auto [uv0Open, uv1Open] = toUV(uvOpen);
+  auto [uv0Save, uv1Save] = toUV(uvSave);
+  auto [uv0Play, uv1Play] = toUV(uvPlay);
+  auto [uv0Pause, uv1Pause] = toUV(uvPause);
+  auto [uv0Stop, uv1Stop] = toUV(uvStop);
+
+  ImTextureID tex = (ImTextureID)(intptr_t)atlas.id;
+  ImVec2 iconSize(_context->prefs.ui.toolbar.buttonSize, _context->prefs.ui.toolbar.buttonSize);
+
+  if (IconButton("##new", tex, uv0New, uv1New, iconSize, true, "New (Ctrl+N)")) {/*...*/ }
+  ImGui::SameLine();
+  if (IconButton("##open", tex, uv0Open, uv1Open, iconSize, true, "Open (Ctrl+O)")) {/*...*/ }
+  ImGui::SameLine();
+  if (IconButton("##save", tex, uv0Save, uv1Save, iconSize, canSave, "Save (Ctrl+S)")) {/*...*/ }
+
+  // separatore
+  ImGui::SameLine();
+  ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+  ImGui::SameLine();
+
+  // se toggle play è attivo, mostra pause/stop, altrimenti play
+  if (!isPlaying) {
+    if (IconButton("##play", tex, uv0Play, uv1Play, iconSize, true, "Play (Space)")) {/* start */ }
+  }
+  else {
+    if (IconButton("##pause", tex, uv0Pause, uv1Pause, iconSize, true, "Pause (Space)")) {/* pause */ }
+    ImGui::SameLine();
+    if (IconButton("##stop", tex, uv0Stop, uv1Stop, iconSize, true, "Stop (Shift+Space)")) {/* stop */ }
+  }
+
+  // scorciatoie da tastiera
+  bool ctrl = io.KeyCtrl;
+  if (ctrl && ImGui::IsKeyPressed(ImGuiKey_N)) {/* new */ }
+  if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O)) {/* open */ }
+  if (ctrl && ImGui::IsKeyPressed(ImGuiKey_S) && canSave) {/* save */ }
+  if (ImGui::IsKeyPressed(ImGuiKey_Space)) {/* play/pause toggle */ }
+  if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Space)) {/* stop */ }
+
+  ImGui::End();
+  ImGui::PopStyleVar();
+}
+
 int main(int arg, char* argv[])
 {  
   Context context;
@@ -346,6 +430,8 @@ int main(int arg, char* argv[])
   SetConfigFlags(FLAG_MSAA_4X_HINT);
 
   InitWindow(1280, 800, "Nanoforge v0.0.1a");
+
+  auto icons = LoadTexture(BASE_PATH "/icons.png");
 
   data.init();
   renderer->init();
@@ -364,6 +450,7 @@ int main(int arg, char* argv[])
   renderer->camera().projection = CAMERA_PERSPECTIVE;
 
   rlImGuiSetup(true);
+  ImGui::StyleColorsLight();
 
   SetTargetFPS(60);
 
@@ -399,7 +486,7 @@ int main(int arg, char* argv[])
       if (idx >= 0)
       {
         float y = (gfx::Renderer::MOCK_LAYER_SIZE * Data::Constants::LAYER2D_CELL_SIZE.height) * it.relative() + (Data::Constants::LAYER2D_SPACING * it.relative());
-        renderer->renderLayerGrid2d(Data::Constants::LAYER2D_BASE + vec2(0, y), model->layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), Data::Constants::LAYER2D_CELL_SIZE);
+        renderer->renderLayerGrid2d(context.prefs.gridTopPosition() + vec2(0, y), model->layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), Data::Constants::LAYER2D_CELL_SIZE);
       }
     }
 
@@ -420,9 +507,17 @@ int main(int arg, char* argv[])
     if (newSelection)
       context.brush->dye(newSelection);
 
+    DrawToolbar(&context, icons, Rectangle(0, 0, 64, 64), Rectangle(64, 0, 64, 64), Rectangle(128, 0, 64, 64),
+      Rectangle(196, 0, 64, 64), Rectangle(64 * 4, 0, 64, 64), Rectangle(64 * 5, 0, 64, 64), true, false);
+
+    ImGuiIO& io = ImGui::GetIO();
+    bool blockMouse = io.WantCaptureMouse;
+    bool blockKeyboard = io.WantCaptureKeyboard;
+
     rlImGuiEnd();
 
-    input->handle(model.get());
+    if (!blockMouse && !blockKeyboard)
+      input->handle(model.get());
 
     UpdateCamera(&renderer->camera(), CAMERA_ORBITAL);
 

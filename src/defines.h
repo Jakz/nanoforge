@@ -46,7 +46,6 @@ struct Data
     static constexpr float studDiameter = 2.5f;
 
     static size2d_t LAYER2D_CELL_SIZE;
-    static vec2 LAYER2D_BASE;
     static float LAYER2D_SPACING;
   };
 

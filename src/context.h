@@ -16,7 +16,22 @@ struct Preferences
   struct
   {
     bool drawHoverOnAllLayers = true;
+    struct
+    {
+      float height = 36.0f;
+      float buttonSize = 24.0f;
+
+    } toolbar;
+
+    struct
+    {
+      vec2 marginFromTop = vec2(10.0f, 10.0f);
+
+
+    } grid;
   } ui;
+
+  vec2 gridTopPosition() const { return ui.grid.marginFromTop + vec2(0, ui.toolbar.height); }
 };
 
 struct Context
