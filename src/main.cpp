@@ -27,8 +27,11 @@
 #include "imgui_internal.h"
 #include "rlImGui.h"
 
-//#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
+#ifdef __APPLE__
+#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
+#else
 #define BASE_PATH "../../models"
+#endif
 
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
@@ -507,8 +510,8 @@ int main(int arg, char* argv[])
     if (newSelection)
       context.brush->dye(newSelection);
 
-    DrawToolbar(&context, icons, Rectangle(0, 0, 64, 64), Rectangle(64, 0, 64, 64), Rectangle(128, 0, 64, 64),
-      Rectangle(196, 0, 64, 64), Rectangle(64 * 4, 0, 64, 64), Rectangle(64 * 5, 0, 64, 64), true, false);
+    DrawToolbar(&context, icons, Rectangle{0, 0, 64, 64}, Rectangle{64, 0, 64, 64}, Rectangle{128, 0, 64, 64},
+                Rectangle{196, 0, 64, 64}, Rectangle{64 * 4, 0, 64, 64}, Rectangle{64 * 5, 0, 64, 64}, true, false);
 
     ImGuiIO& io = ImGui::GetIO();
     bool blockMouse = io.WantCaptureMouse;

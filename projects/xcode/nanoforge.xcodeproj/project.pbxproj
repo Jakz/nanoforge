@@ -18,6 +18,12 @@
 		04F43B592E894CF500AD23B8 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B582E894CF500AD23B8 /* CoreGraphics.framework */; };
 		04F43B5B2E894D0A00AD23B8 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B5A2E894D0A00AD23B8 /* Carbon.framework */; };
 		04F43B5D2E894D1B00AD23B8 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F43B5C2E894D1B00AD23B8 /* IOKit.framework */; };
+		04F43B632E8B3E9300AD23B8 /* input.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B622E8B3E9300AD23B8 /* input.cpp */; };
+		04F43B672E8C96AD00AD23B8 /* rlImGui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B662E8C96AD00AD23B8 /* rlImGui.cpp */; };
+		04F43B6C2E8C96BF00AD23B8 /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B682E8C96BF00AD23B8 /* imgui_tables.cpp */; };
+		04F43B6D2E8C96BF00AD23B8 /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B692E8C96BF00AD23B8 /* imgui_draw.cpp */; };
+		04F43B6E2E8C96BF00AD23B8 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B6A2E8C96BF00AD23B8 /* imgui.cpp */; };
+		04F43B6F2E8C96BF00AD23B8 /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B6B2E8C96BF00AD23B8 /* imgui_widgets.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -53,6 +59,15 @@
 		04F43B5C2E894D1B00AD23B8 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		04F43B5F2E89F58900AD23B8 /* glad.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = glad.h; path = ../../src/glad/glad.h; sourceTree = "<group>"; };
 		04F43B602E89F58900AD23B8 /* khrplatform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = khrplatform.h; path = ../../src/glad/khrplatform.h; sourceTree = "<group>"; };
+		04F43B612E8B3E9300AD23B8 /* input.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = input.h; path = ../../src/input.h; sourceTree = "<group>"; };
+		04F43B622E8B3E9300AD23B8 /* input.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = input.cpp; path = ../../src/input.cpp; sourceTree = "<group>"; };
+		04F43B642E8B3E9C00AD23B8 /* context.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = context.h; path = ../../src/context.h; sourceTree = "<group>"; };
+		04F43B662E8C96AD00AD23B8 /* rlImGui.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rlImGui.cpp; path = ../../../libs/rlImGui/rlImGui.cpp; sourceTree = "<group>"; };
+		04F43B682E8C96BF00AD23B8 /* imgui_tables.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_tables.cpp; path = ../../../libs/imgui/imgui_tables.cpp; sourceTree = "<group>"; };
+		04F43B692E8C96BF00AD23B8 /* imgui_draw.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = ../../../libs/imgui/imgui_draw.cpp; sourceTree = "<group>"; };
+		04F43B6A2E8C96BF00AD23B8 /* imgui.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui.cpp; path = ../../../libs/imgui/imgui.cpp; sourceTree = "<group>"; };
+		04F43B6B2E8C96BF00AD23B8 /* imgui_widgets.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_widgets.cpp; path = ../../../libs/imgui/imgui_widgets.cpp; sourceTree = "<group>"; };
+		04F43B702E8C972700AD23B8 /* imgui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = imgui.h; path = ../../../libs/imgui/imgui.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,10 +109,14 @@
 		04F43B3D2E89435700AD23B8 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				04F43B652E8C96A300AD23B8 /* imgui */,
 				04F43B5E2E89F57500AD23B8 /* glad */,
 				04F43B472E8943B400AD23B8 /* model */,
 				04F43B442E89439B00AD23B8 /* io */,
+				04F43B642E8B3E9C00AD23B8 /* context.h */,
 				04F43B412E89439500AD23B8 /* defines.h */,
+				04F43B622E8B3E9300AD23B8 /* input.cpp */,
+				04F43B612E8B3E9300AD23B8 /* input.h */,
 				04F43B3E2E89439400AD23B8 /* main.cpp */,
 				04F43B402E89439500AD23B8 /* renderer.cpp */,
 				04F43B3F2E89439400AD23B8 /* renderer.h */,
@@ -146,6 +165,19 @@
 				04F43B602E89F58900AD23B8 /* khrplatform.h */,
 			);
 			name = glad;
+			sourceTree = "<group>";
+		};
+		04F43B652E8C96A300AD23B8 /* imgui */ = {
+			isa = PBXGroup;
+			children = (
+				04F43B702E8C972700AD23B8 /* imgui.h */,
+				04F43B692E8C96BF00AD23B8 /* imgui_draw.cpp */,
+				04F43B682E8C96BF00AD23B8 /* imgui_tables.cpp */,
+				04F43B6B2E8C96BF00AD23B8 /* imgui_widgets.cpp */,
+				04F43B6A2E8C96BF00AD23B8 /* imgui.cpp */,
+				04F43B662E8C96AD00AD23B8 /* rlImGui.cpp */,
+			);
+			name = imgui;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -206,7 +238,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				04F43B432E89439500AD23B8 /* renderer.cpp in Sources */,
+				04F43B6D2E8C96BF00AD23B8 /* imgui_draw.cpp in Sources */,
 				04F43B422E89439500AD23B8 /* main.cpp in Sources */,
+				04F43B632E8B3E9300AD23B8 /* input.cpp in Sources */,
+				04F43B672E8C96AD00AD23B8 /* rlImGui.cpp in Sources */,
+				04F43B6E2E8C96BF00AD23B8 /* imgui.cpp in Sources */,
+				04F43B6C2E8C96BF00AD23B8 /* imgui_tables.cpp in Sources */,
+				04F43B6F2E8C96BF00AD23B8 /* imgui_widgets.cpp in Sources */,
 				04F43B4C2E8943BF00AD23B8 /* model.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -267,6 +305,8 @@
 					"${PROJECT_DIR}/../../src",
 					"${PROJECT_DIR}/../../libs/raylib/include",
 					"${PROJECT_DIR}/../../libs/raylib-cpp/include",
+					/Users/jack/Documents/Dev/libs/imgui,
+					/Users/jack/Documents/Dev/libs/rlImGui,
 				);
 				LIBRARY_SEARCH_PATHS = /Users/jack/Documents/Dev/nanoforge/libs/raylib/lib/macos;
 				MACOSX_DEPLOYMENT_TARGET = 12.3;
@@ -324,6 +364,8 @@
 					"${PROJECT_DIR}/../../src",
 					"${PROJECT_DIR}/../../libs/raylib/include",
 					"${PROJECT_DIR}/../../libs/raylib-cpp/include",
+					/Users/jack/Documents/Dev/libs/imgui,
+					/Users/jack/Documents/Dev/libs/rlImGui,
 				);
 				LIBRARY_SEARCH_PATHS = /Users/jack/Documents/Dev/nanoforge/libs/raylib/lib/macos;
 				MACOSX_DEPLOYMENT_TARGET = 12.3;

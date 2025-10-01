@@ -37,6 +37,7 @@ public:
         animNormals = nullptr;
         boneIds = nullptr;
         boneWeights = nullptr;
+        boneMatrices = nullptr;
         vaoId = 0;
         vboId = nullptr;
     }

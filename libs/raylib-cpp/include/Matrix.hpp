@@ -132,7 +132,7 @@ public:
 
     Matrix Multiply(const ::Matrix& right) const { return ::MatrixMultiply(*this, right); }
 
-    Matrix operator*(const ::Matrix& matrix) { return ::MatrixMultiply(*this, matrix); }
+    Matrix operator*(const ::Matrix& matrix) const { return ::MatrixMultiply(*this, matrix); }
 
     static Matrix Frustum(double left, double right, double bottom, double top, double near, double far) {
         return ::MatrixFrustum(left, right, bottom, top, near, far);

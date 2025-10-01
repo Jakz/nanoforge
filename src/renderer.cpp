@@ -280,29 +280,32 @@ void gfx::Renderer::renderLayerGrid3d(layer_index_t index, size2d_t size)
   }
 }
 
+void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::Matrix& layerTransform)
+{
+  for (int y = 0; y < piece->height(); ++y)
+    for (int x = 0; x < piece->width(); ++x)
+    {
+      _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + x + 0.5f) * side, height, (piece->y() + y + 0.5f) * side), piece->color() });
+
+      raylib::Vector3 center = raylib::Vector3::Zero();
+      center = center.Transform(_studBatch.instanceData().back().matrix);
+
+      DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece->color()->edge(), MatrixIdentity(), _camera);
+    }
+}
+
 void gfx::Renderer::renderLayer(const nb::Layer* layer)
 {
   /* compute the matrix for the layer */
   raylib::Matrix layerTransform = raylib::Matrix::Translate(0.0f, layer->index() * height, 0.0f);
 
-  size_t i = 0;
   for (const nb::Piece& piece : layer->pieces())
   {
     /* translate inside layer according to position */
     raylib::Matrix pieceTransform = raylib::Matrix::Translate((piece.x() + piece.width() * 0.5f) * side, height * 0.5f, (piece.y() + piece.height() * 0.5f) * side);
 
-    for (int y = 0; y < piece.height(); ++y)
-      for (int x = 0; x < piece.width(); ++x)
-      {
-        _studBatch.instanceData().push_back({layerTransform * raylib::Matrix::Translate((piece.x() + x + 0.5f) * side, height, (piece.y() + y + 0.5f) * side), piece.color()});
-
-        raylib::Vector3 center = raylib::Vector3::Zero();
-        center = center.Transform(_studBatch.instanceData().back().matrix);
-
-        DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece.color()->edge(), MatrixIdentity(), _camera);
-      }
-
-
+    prepareStudsForPiece(&piece, layerTransform);
+    
     pieceTransform = raylib::Matrix::Scale(piece.width(), 1.0f, piece.height()) * pieceTransform;
     auto finalTransform = layerTransform * pieceTransform;
     
@@ -323,8 +326,8 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
 
   }
 
-  _cubeBatch.draw(materials.flatMaterial);
-  _cylinderBatch.draw(materials.flatMaterial);
+  for (auto* batch : _shapeBatches)
+    batch->draw(materials.flatMaterial);
 }
 
 void gfx::Renderer::renderStuds()

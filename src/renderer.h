@@ -25,7 +25,7 @@ namespace gfx
     unsigned int _vboIDs[3];
 
     unsigned int _vboVertices, _vboTransforms, _vboColorShades;
-
+  
     /* per instance data */
     std::vector<float16> _colorShadesData;
     std::vector<float16> _transformsData;
@@ -97,6 +97,8 @@ namespace gfx
 
   protected:
 
+    void prepareStudsForPiece(const nb::Piece* piece, const raylib::Matrix& layerTransform);
+    
     void renderLayerGrid3d(layer_index_t index, size2d_t size);
     void renderLayer(const nb::Layer* layer);
     void renderModel(const nb::Model* model);
