@@ -3,9 +3,6 @@
 #include "context.h"
 #include "input.h"
 
-extern Data data;
-
-
 nb::layer_iterator_t gfx::TopDownGrid::begin() const
 {
   layer_index_t topMostLayer = std::min(

@@ -4,9 +4,6 @@
 #include "renderer.h"
 #include "context.h"
 
-extern Data data;
-
-
 class Context;
 
 void InputHandler::handleKeystate()
@@ -160,7 +157,7 @@ void InputHandler::keyDown(int key)
   else if (key >= KEY_ZERO && key <= KEY_NINE)
   {
     int index = (key == KEY_ZERO) ? 9 : (key - KEY_ONE);
-    auto it = data.colors.begin();
+    auto it = _context->data->colors.begin();
     while (index > 0)
     {
       ++it;

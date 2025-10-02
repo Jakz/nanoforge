@@ -14,6 +14,7 @@
 #include "context.h"
 #include "renderer.h"
 #include "input.h"
+#include "ui.h"
 
 #include <vector>
 #include <array>
@@ -26,12 +27,6 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "rlImGui.h"
-
-#ifdef __APPLE__
-#define BASE_PATH "/Users/jack/Documents/Dev/nanoforge/models"
-#else
-#define BASE_PATH "../../models"
-#endif
 
 // https://nanoblocks.fandom.com/wiki/Nanoblocks_Wiki
 // https://blockguide.ch/
@@ -97,10 +92,10 @@ struct files
 };
 
 
-void Data::init()
+Data::Data(Context* context) : _context(context)
 {
   /* load colors from ../../models/colors.yml */
-  auto node = fkyaml::node::deserialize(files::read_as_string(BASE_PATH "/colors.yml"));
+  auto node = fkyaml::node::deserialize(files::read_as_string(_context->prefs.basePath + "/colors.yml"));
   for (const auto& cc : node["colors"].as_seq())
   {
     ident_t id = cc["ident"].as_str();
@@ -119,27 +114,32 @@ void Data::init()
   colors.white = &colors["white"];
 }
 
-
-Data data;
-
 #include <optional>
 #include <unordered_set>
 
+#include "ui.h"
 
-Context::Context() : 
-  model(std::make_unique<nb::Model>()), 
-  renderer(std::make_unique<gfx::Renderer>(this)), 
-  input(std::make_unique<InputHandler>(this)), 
-  brush(std::make_unique<nb::Piece>(nb::Piece()))
+Context::Context() :
+  model(std::make_unique<nb::Model>()),
+  renderer(std::make_unique<gfx::Renderer>(this)),
+  input(std::make_unique<InputHandler>(this)),
+  brush(std::make_unique<nb::Piece>(nb::Piece())),
+  ui(std::make_unique<UI>(this)),
+  loader(std::make_unique<Loader>(this)),
+  data(std::make_unique<Data>(this))
 {
 
 }
 
 class Loader
 {
-  public:
-    std::optional<nb::Model> load(const std::filesystem::path& filename);
-    void save(const nb::Model* model, const std::filesystem::path& filename);
+protected:
+  Context* _context;
+public:
+  Loader(Context* context) : _context(context) { }
+  
+  std::optional<nb::Model> load(const std::filesystem::path& filename);
+  void save(const nb::Model* model, const std::filesystem::path& filename);
 };
 
 void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
@@ -214,7 +214,7 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
       int z = p["position"][0].as_int();
       int x = p["position"][1].as_int();
       int y = p["position"][2].as_int();
-      const nb::PieceColor* color = data.colors.white;
+      const nb::PieceColor* color = _context->data->colors.white;
       nb::PieceType type = nb::PieceType::Square;
       nb::StudMode studs = nb::StudMode::Full;
 
@@ -228,8 +228,8 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
 
       if (p["color"].is_string())
       {
-        auto it = data.colors.find(p["color"].as_str());
-        if (it != data.colors.end())
+        auto it = _context->data->colors.find(p["color"].as_str());
+        if (it != _context->data->colors.end())
           color = &it->second;
       }
 
@@ -259,97 +259,6 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
 }
 
 
-static inline ImVec4 ToImVec4(Color c) {
-  return ImVec4(c.r / 255.f, c.g / 255.f, c.b / 255.f, c.a / 255.f);
-}
-
-const nb::PieceColor* ImGuiPaletteWindow(const char* title,
-  const std::vector<const nb::PieceColor*>& colors,
-  int columns,
-  const nb::PieceColor* selected = nullptr,
-  float cellSize = 28.0f,
-  float cellRounding = 4.0f,
-  float cellSpacing = 6.0f)
-{
-  if (columns < 1) columns = 1;
-
-  int clickedIndex = -1;
-
-  if (ImGui::Begin(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(cellSpacing, cellSpacing));
-
-    for (int i = 0; i < (int)colors.size(); ++i) {
-      ImGui::PushID(i);
-
-      ImVec4 col = ToImVec4(colors[i]->top());
-
-      ImGuiColorEditFlags flags =
-        ImGuiColorEditFlags_NoTooltip |
-        ImGuiColorEditFlags_NoDragDrop |
-        ImGuiColorEditFlags_NoAlpha;
-
-      // Forziamo la dimensione del bottone colore
-      ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, cellRounding);
-      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-
-      // Hitbox invisibile con draw manuale del bordo selezione
-      ImGui::InvisibleButton("cell", ImVec2(cellSize, cellSize));
-      bool hovered = ImGui::IsItemHovered();
-      bool pressed = ImGui::IsItemClicked();
-
-      // Disegno del quad colorato
-      ImDrawList* dl = ImGui::GetWindowDrawList();
-      ImVec2 p0 = ImGui::GetItemRectMin();
-      ImVec2 p1 = ImGui::GetItemRectMax();
-      ImU32 ucol = ImGui::GetColorU32(col);
-
-      dl->AddRectFilled(p0, p1, ucol, cellRounding);
-
-      bool isSelected = (selected && selected == colors[i]);
-
-      if (hovered || isSelected)
-      {
-        dl->AddRect(p0, p1, ImGui::GetColorU32(ToImVec4(colors[i]->edge())), cellRounding, 0, hovered ? 8.0f : 6.0f);
-      }
-      else
-      {
-        // sottile bordo scuro per separare le celle
-        dl->AddRect(p0, p1, ImGui::GetColorU32(ImVec4(0, 0, 0, 0.35f)), cellRounding, 0, 1.0f);
-      }
-
-      // Tooltip
-      if (hovered)
-      {
-        const Color& c = colors[i]->top();
-        ImGui::BeginTooltip();
-        ImGui::Text("%s - RGB(%d, %d, %d)", colors[i]->ident.c_str(), c.r, c.g, c.b);
-        ImGui::EndTooltip();
-      }
-
-      if (pressed) {
-        clickedIndex = i;
-      }
-
-      ImGui::PopStyleVar(2);
-
-      // Gestione colonne (same-line tranne a fine riga)
-      int colIdx = (i % columns);
-      if (colIdx != columns - 1)
-        ImGui::SameLine();
-
-      ImGui::PopID();
-    }
-
-    ImGui::PopStyleVar(); // ItemSpacing
-  }
-
-  //ImGui::NewLine();
-  //ImGui::Separator();
-
-  ImGui::End();
-
-  return clickedIndex >= 0 ? colors[clickedIndex] : nullptr;
-}
 
 
 inline std::optional<nb::StudMode> DrawStudModeWindow(const nb::StudMode& current)
@@ -377,95 +286,10 @@ inline std::optional<nb::StudMode> DrawStudModeWindow(const nb::StudMode& curren
   return result;
 }
 
-
-
-static bool IconButton(const char* id, ImTextureID tex, const ImVec2& uv0, const ImVec2& uv1,
-  const ImVec2& size, bool enabled = true, const char* tooltip = nullptr)
-{
-  ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);    // no bordo
-  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);      // angoli arrotondati
-  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));// padding interno ridotto
-  
-  if (!enabled) 
-    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-
-  bool pressed = ImGui::ImageButton(id, tex, size, uv0, uv1, ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1)) && enabled;
-
-  if (tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-    ImGui::SetTooltip("%s", tooltip);
-
-  if (!enabled)
-    ImGui::PopStyleVar();
-
-  ImGui::PopStyleVar(3);
-
-  return pressed;
-}
-
-void DrawToolbar(Context* _context, Texture2D atlas, Rectangle uvNew, Rectangle uvOpen, Rectangle uvSave,
-  Rectangle uvPlay, Rectangle uvPause, Rectangle uvStop,
-  bool canSave, bool isPlaying)
-{
-  ImGuiIO& io = ImGui::GetIO();
-  // finestra a tutta larghezza, senza bordi
-  ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-  ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, _context->prefs.ui.toolbar.height));
-  ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-    ImGuiWindowFlags_NoSavedSettings;
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
-  ImGui::Begin("Toolbar", nullptr, flags);
-
-  auto toUV = [&](Rectangle r) {
-    ImVec2 uv0(r.x / atlas.width, r.y / atlas.height);
-    ImVec2 uv1((r.x + r.width) / atlas.width, (r.y + r.height) / atlas.height);
-    return std::pair{ uv0, uv1 };
-    };
-  auto [uv0New, uv1New] = toUV(uvNew);
-  auto [uv0Open, uv1Open] = toUV(uvOpen);
-  auto [uv0Save, uv1Save] = toUV(uvSave);
-  auto [uv0Play, uv1Play] = toUV(uvPlay);
-  auto [uv0Pause, uv1Pause] = toUV(uvPause);
-  auto [uv0Stop, uv1Stop] = toUV(uvStop);
-
-  ImTextureID tex = (ImTextureID)(intptr_t)atlas.id;
-  ImVec2 iconSize(_context->prefs.ui.toolbar.buttonSize, _context->prefs.ui.toolbar.buttonSize);
-
-  if (IconButton("##new", tex, uv0New, uv1New, iconSize, true, "New (Ctrl+N)")) {/*...*/ }
-  ImGui::SameLine();
-  if (IconButton("##open", tex, uv0Open, uv1Open, iconSize, true, "Open (Ctrl+O)")) {/*...*/ }
-  ImGui::SameLine();
-  if (IconButton("##save", tex, uv0Save, uv1Save, iconSize, canSave, "Save (Ctrl+S)")) {/*...*/ }
-
-  // separatore
-  ImGui::SameLine();
-  ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-  ImGui::SameLine();
-
-  // se toggle play è attivo, mostra pause/stop, altrimenti play
-  if (!isPlaying) {
-    if (IconButton("##play", tex, uv0Play, uv1Play, iconSize, true, "Play (Space)")) {/* start */ }
-  }
-  else {
-    if (IconButton("##pause", tex, uv0Pause, uv1Pause, iconSize, true, "Pause (Space)")) {/* pause */ }
-    ImGui::SameLine();
-    if (IconButton("##stop", tex, uv0Stop, uv1Stop, iconSize, true, "Stop (Shift+Space)")) {/* stop */ }
-  }
-
-  // scorciatoie da tastiera
-  bool ctrl = io.KeyCtrl;
-  if (ctrl && ImGui::IsKeyPressed(ImGuiKey_N)) {/* new */ }
-  if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O)) {/* open */ }
-  if (ctrl && ImGui::IsKeyPressed(ImGuiKey_S) && canSave) {/* save */ }
-  if (ImGui::IsKeyPressed(ImGuiKey_Space)) {/* play/pause toggle */ }
-  if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Space)) {/* stop */ }
-
-  ImGui::End();
-  ImGui::PopStyleVar();
-}
-
 int main(int arg, char* argv[])
-{  
+{
+  InitWindow(1280, 800, "Nanoforge v0.0.1a");
+
   Context context;
 
   auto& model = context.model;
@@ -474,19 +298,13 @@ int main(int arg, char* argv[])
 
   SetConfigFlags(FLAG_MSAA_4X_HINT);
 
-  InitWindow(1280, 800, "Nanoforge v0.0.1a");
-
-  auto icons = LoadTexture(BASE_PATH "/icons.png");
-
-  data.init();
   renderer->init();
 
-  Loader loader;
-  auto result = loader.load(BASE_PATH "/model.yml");
+  auto result = context.loader->load(context.prefs.basePath + "/model.yml");
   if (result)
     *context.model = std::move(*result);
 
-  context.brush.reset(new nb::Piece(coord2d_t(0, 0), data.colors.lime, nb::PieceOrientation::North, nb::PieceType::Square, size2d_t(1, 1)));
+  context.brush.reset(new nb::Piece(coord2d_t(0, 0), context.data->colors.lime, nb::PieceOrientation::North, nb::PieceType::Square, size2d_t(1, 1)));
 
   renderer->camera().target = { gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f,  0.0f,  gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f };
   renderer->camera().position = { renderer->camera().target.x * 4.0f, renderer->camera().target.x * 2.0f, renderer->camera().target.y * 4.0f };
@@ -543,22 +361,14 @@ int main(int arg, char* argv[])
     }
 
     rlImGuiBegin();
-    bool open = true;
     
-    std::vector<const nb::PieceColor*> colors;
-    for (const auto& c : data.colors)
-      colors.push_back(&c.second);
-    auto newSelection = ImGuiPaletteWindow("Palette", colors, 5, context.brush->color());
-    if (newSelection)
-      context.brush->dye(newSelection);
+    context.ui->drawPaletteWindow();
 
     auto newStudMode = DrawStudModeWindow(context.brush->studs());
     if (newStudMode)
       context.brush->setStuds(*newStudMode);
 
-
-    DrawToolbar(&context, icons, Rectangle{0, 0, 64, 64}, Rectangle{64, 0, 64, 64}, Rectangle{128, 0, 64, 64},
-                Rectangle{196, 0, 64, 64}, Rectangle{64 * 4, 0, 64, 64}, Rectangle{64 * 5, 0, 64, 64}, true, false);
+    context.ui->drawToolbar();
 
     ImGuiIO& io = ImGui::GetIO();
     bool blockMouse = io.WantCaptureMouse;
@@ -576,7 +386,7 @@ int main(int arg, char* argv[])
 
   renderer->deinit();
 
-  loader.save(model.get(), BASE_PATH "/model.yml");
+  context.loader->save(model.get(), context.prefs.basePath + "/model.yml");
 
   CloseWindow();
   return 0;

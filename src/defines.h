@@ -36,8 +36,12 @@ struct FlatShader
   raylib::ShaderUnmanaged* operator->() { return &shader; }
 };
 
+class Context;
+
 struct Data
 {
+  Context* _context;
+  
   struct Constants
   {
     static constexpr float side = 3.8f;
@@ -55,7 +59,6 @@ struct Data
     const nb::PieceColor* white;
   } colors;
 
-  void init();
+  Data(Context* context);
 };
 
-class Context;

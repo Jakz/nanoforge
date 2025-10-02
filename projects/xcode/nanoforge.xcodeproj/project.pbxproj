@@ -24,6 +24,7 @@
 		04F43B6D2E8C96BF00AD23B8 /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B692E8C96BF00AD23B8 /* imgui_draw.cpp */; };
 		04F43B6E2E8C96BF00AD23B8 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B6A2E8C96BF00AD23B8 /* imgui.cpp */; };
 		04F43B6F2E8C96BF00AD23B8 /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B6B2E8C96BF00AD23B8 /* imgui_widgets.cpp */; };
+		04F43B732E8F36ED00AD23B8 /* ui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04F43B722E8F36ED00AD23B8 /* ui.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -68,6 +69,8 @@
 		04F43B6A2E8C96BF00AD23B8 /* imgui.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui.cpp; path = ../../../libs/imgui/imgui.cpp; sourceTree = "<group>"; };
 		04F43B6B2E8C96BF00AD23B8 /* imgui_widgets.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_widgets.cpp; path = ../../../libs/imgui/imgui_widgets.cpp; sourceTree = "<group>"; };
 		04F43B702E8C972700AD23B8 /* imgui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = imgui.h; path = ../../../libs/imgui/imgui.h; sourceTree = "<group>"; };
+		04F43B712E8F36ED00AD23B8 /* ui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ui.h; path = ../../src/ui.h; sourceTree = "<group>"; };
+		04F43B722E8F36ED00AD23B8 /* ui.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ui.cpp; path = ../../src/ui.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -120,6 +123,8 @@
 				04F43B3E2E89439400AD23B8 /* main.cpp */,
 				04F43B402E89439500AD23B8 /* renderer.cpp */,
 				04F43B3F2E89439400AD23B8 /* renderer.h */,
+				04F43B722E8F36ED00AD23B8 /* ui.cpp */,
+				04F43B712E8F36ED00AD23B8 /* ui.h */,
 			);
 			name = src;
 			sourceTree = "<group>";
@@ -242,6 +247,7 @@
 				04F43B422E89439500AD23B8 /* main.cpp in Sources */,
 				04F43B632E8B3E9300AD23B8 /* input.cpp in Sources */,
 				04F43B672E8C96AD00AD23B8 /* rlImGui.cpp in Sources */,
+				04F43B732E8F36ED00AD23B8 /* ui.cpp in Sources */,
 				04F43B6E2E8C96BF00AD23B8 /* imgui.cpp in Sources */,
 				04F43B6C2E8C96BF00AD23B8 /* imgui_tables.cpp in Sources */,
 				04F43B6F2E8C96BF00AD23B8 /* imgui_widgets.cpp in Sources */,
