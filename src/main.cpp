@@ -216,6 +216,7 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
       int y = p["position"][2].as_int();
       const nb::PieceColor* color = data.colors.white;
       nb::PieceType type = nb::PieceType::Square;
+      nb::StudMode studs = nb::StudMode::Full;
 
       size2d_t size = size2d_t(1, 1);
 
@@ -238,7 +239,17 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
           type = nb::PieceType::Round;
       }
 
-      model.addPiece(z, nb::Piece(coord2d_t(x, y), color, nb::PieceOrientation::North, type, size));
+      if (p["studs"].is_string())
+      {
+        if (p["studs"] == "none")
+          studs = nb::StudMode::None;
+        else if (p["studs"] == "centered")
+          studs = nb::StudMode::Centered;
+        else if (p["studs"] == "full")
+          studs = nb::StudMode::Full;
+      }
+
+      model.addPiece(z, nb::Piece(coord2d_t(x, y), color, nb::PieceOrientation::North, type, size, studs));
     }
 
     return model;
@@ -264,8 +275,7 @@ const nb::PieceColor* ImGuiPaletteWindow(const char* title,
 
   int clickedIndex = -1;
 
-  if (ImGui::Begin(title)) {
-    // Layout: griglia compatta
+  if (ImGui::Begin(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(cellSpacing, cellSpacing));
 
     for (int i = 0; i < (int)colors.size(); ++i) {
@@ -332,10 +342,42 @@ const nb::PieceColor* ImGuiPaletteWindow(const char* title,
 
     ImGui::PopStyleVar(); // ItemSpacing
   }
+
+  //ImGui::NewLine();
+  //ImGui::Separator();
+
   ImGui::End();
 
   return clickedIndex >= 0 ? colors[clickedIndex] : nullptr;
 }
+
+
+inline std::optional<nb::StudMode> DrawStudModeWindow(const nb::StudMode& current)
+{
+  std::optional<nb::StudMode> result;
+  int modeInt = static_cast<int>(current);
+
+  if (ImGui::Begin("Studs", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    if (ImGui::RadioButton("Full", modeInt == static_cast<int>(nb::StudMode::Full)))
+      modeInt = static_cast<int>(nb::StudMode::Full);
+
+    if (ImGui::RadioButton("Centered", modeInt == static_cast<int>(nb::StudMode::Centered)))
+      modeInt = static_cast<int>(nb::StudMode::Centered);
+
+    if (ImGui::RadioButton("None", modeInt == static_cast<int>(nb::StudMode::None)))
+      modeInt = static_cast<int>(nb::StudMode::None);
+
+    // Se è cambiato rispetto a current → restituisci nuovo valore
+    if (modeInt != static_cast<int>(current))
+      result = static_cast<nb::StudMode>(modeInt);
+  }
+  ImGui::End();
+
+  return result;
+}
+
+
 
 static bool IconButton(const char* id, ImTextureID tex, const ImVec2& uv0, const ImVec2& uv1,
   const ImVec2& size, bool enabled = true, const char* tooltip = nullptr)
@@ -509,6 +551,11 @@ int main(int arg, char* argv[])
     auto newSelection = ImGuiPaletteWindow("Palette", colors, 5, context.brush->color());
     if (newSelection)
       context.brush->dye(newSelection);
+
+    auto newStudMode = DrawStudModeWindow(context.brush->studs());
+    if (newStudMode)
+      context.brush->setStuds(*newStudMode);
+
 
     DrawToolbar(&context, icons, Rectangle{0, 0, 64, 64}, Rectangle{64, 0, 64, 64}, Rectangle{128, 0, 64, 64},
                 Rectangle{196, 0, 64, 64}, Rectangle{64 * 4, 0, 64, 64}, Rectangle{64 * 5, 0, 64, 64}, true, false);

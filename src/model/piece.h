@@ -21,6 +21,13 @@ namespace nb
     Round
   };
 
+  enum class StudMode
+  {
+    None = 0,
+    Centered,
+    Full
+  };
+
   struct PieceColor
   {
     ident_t ident;
@@ -46,13 +53,14 @@ namespace nb
     const PieceColor* _color;
     PieceOrientation _orientation;
     PieceType _type;
+    StudMode _studs;
     coord2d_t _coord;
     size2d_t _size;
 
   public:
     Piece() : _coord(0, 0), _color(nullptr), _orientation(PieceOrientation::North), _size(1, 1) { }
-    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, PieceType type = PieceType::Square, size2d_t size = size2d_t(1, 1)) :
-      _coord(coord), _color(color), _orientation(orientation), _type(type), _size(size) { }
+    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, PieceType type = PieceType::Square, size2d_t size = size2d_t(1, 1), StudMode studs = StudMode::Full) :
+      _coord(coord), _color(color), _orientation(orientation), _type(type), _size(size), _studs(studs) { }
     
     void resize(size2d_t size) { _size = size; }
     void swapSize() { _size = size2d_t(_size.height, _size.width); }
@@ -64,6 +72,7 @@ namespace nb
 
 
     void dye(const PieceColor* color) { _color = color; }
+    void setStuds(StudMode studs) { _studs = studs; }
 
     Piece derive(size2d_t size) const
     {
@@ -81,6 +90,7 @@ namespace nb
     const PieceColor* color() const { return _color; }
     size2d_t size() const { return _size; }
     PieceType type() const { return _type; }
+    StudMode studs() const { return _studs; }
 
     int32_t width() const { return _size.width; }
     int32_t height() const { return _size.height; }

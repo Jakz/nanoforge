@@ -282,16 +282,30 @@ void gfx::Renderer::renderLayerGrid3d(layer_index_t index, size2d_t size)
 
 void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::Matrix& layerTransform)
 {
-  for (int y = 0; y < piece->height(); ++y)
-    for (int x = 0; x < piece->width(); ++x)
-    {
-      _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + x + 0.5f) * side, height, (piece->y() + y + 0.5f) * side), piece->color() });
+  if (piece->studs() == nb::StudMode::None)
+    return;
+  else if (piece->studs() == nb::StudMode::Centered)
+  {
+    _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + piece->width() * 0.5f) * side, height, (piece->y() + piece->height() * 0.5f) * side), piece->color()});
 
-      raylib::Vector3 center = raylib::Vector3::Zero();
-      center = center.Transform(_studBatch.instanceData().back().matrix);
+    raylib::Vector3 center = raylib::Vector3::Zero();
+    center = center.Transform(_studBatch.instanceData().back().matrix);
 
-      DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece->color()->edge(), MatrixIdentity(), _camera);
-    }
+    DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece->color()->edge(), MatrixIdentity(), _camera);
+  }
+  else
+  {
+    for (int y = 0; y < piece->height(); ++y)
+      for (int x = 0; x < piece->width(); ++x)
+      {
+        _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + x + 0.5f) * side, height, (piece->y() + y + 0.5f) * side), piece->color() });
+
+        raylib::Vector3 center = raylib::Vector3::Zero();
+        center = center.Transform(_studBatch.instanceData().back().matrix);
+
+        DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece->color()->edge(), MatrixIdentity(), _camera);
+      }
+  }
 }
 
 void gfx::Renderer::renderLayer(const nb::Layer* layer)
