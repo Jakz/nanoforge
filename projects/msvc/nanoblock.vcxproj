@@ -21,6 +21,7 @@
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\model\model.cpp" />
     <ClCompile Include="..\..\src\renderer.cpp" />
+    <ClCompile Include="..\..\src\ui.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\context.h" />
@@ -32,6 +33,7 @@
     <ClInclude Include="..\..\src\model\model.h" />
     <ClInclude Include="..\..\src\model\piece.h" />
     <ClInclude Include="..\..\src\renderer.h" />
+    <ClInclude Include="..\..\src\ui.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\models\colors.yml" />

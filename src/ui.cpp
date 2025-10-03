@@ -8,6 +8,8 @@
 
 #include "model/piece.h"
 
+#include <optional>
+
 static inline ImVec4 ToImVec4(Color c)
 {
   return ImVec4(c.r / 255.f, c.g / 255.f, c.b / 255.f, c.a / 255.f);
@@ -141,13 +143,31 @@ static bool IconButton(const char* id, ImTextureID tex, const ImVec2& uv0, const
   return pressed;
 }
 
-std::pair<ImVec2, ImVec2> toUV(const Rectangle& r, const Texture2D& atlas) const
+void UI::drawStudModeWindow()
 {
+  std::optional<nb::StudMode> result;
+  int modeInt = static_cast<int>(_context->brush->studs());
 
-  
+  if (ImGui::Begin("Studs", &_studWindowVisible, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    if (ImGui::RadioButton("Full", modeInt == static_cast<int>(nb::StudMode::Full)))
+      modeInt = static_cast<int>(nb::StudMode::Full);
+
+    if (ImGui::RadioButton("Centered", modeInt == static_cast<int>(nb::StudMode::Centered)))
+      modeInt = static_cast<int>(nb::StudMode::Centered);
+
+    if (ImGui::RadioButton("None", modeInt == static_cast<int>(nb::StudMode::None)))
+      modeInt = static_cast<int>(nb::StudMode::None);
+
+    // Se è cambiato rispetto a current → restituisci nuovo valore
+    if (modeInt != static_cast<int>(_context->brush->studs()))
+      _context->brush->setStuds(static_cast<nb::StudMode>(modeInt));
+  }
+
+  ImGui::End();
 }
 
-bool UI::drawToolbarIcon(const char* ident, coord2d_t icon, const char* caption)
+bool UI::drawToolbarIcon(const char* ident, coord2d_t icon, const char* caption) const
 {
   constexpr float iconTextureSize = 64.0f;
   ImVec2 iconSize(_context->prefs.ui.toolbar.buttonSize, _context->prefs.ui.toolbar.buttonSize);
@@ -160,8 +180,13 @@ bool UI::drawToolbarIcon(const char* ident, coord2d_t icon, const char* caption)
   return IconButton(ident, texture, uv0, uv1, iconSize, true, caption);
 }
 
-void DrawToolbar(UI* ui, Context* _context, Texture2D atlas, Rectangle uvNew, Rectangle uvOpen, Rectangle uvSave,
-  Rectangle uvPlay, Rectangle uvPause, Rectangle uvStop)
+
+UI::UI(Context* context) : _context(context), _paletteWindowVisible(false), _studWindowVisible(false)
+{
+  _icons = LoadTexture((_context->prefs.basePath + "/icons.png").c_str());
+}
+
+void UI::drawToolbar()
 {
   ImGuiIO& io = ImGui::GetIO();
   // finestra a tutta larghezza, senza bordi
@@ -173,24 +198,9 @@ void DrawToolbar(UI* ui, Context* _context, Texture2D atlas, Rectangle uvNew, Re
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
   ImGui::Begin("Toolbar", nullptr, flags);
 
-  auto toUV = [&](Rectangle r) {
-    ImVec2 uv0(r.x / atlas.width, r.y / atlas.height);
-    ImVec2 uv1((r.x + r.width) / atlas.width, (r.y + r.height) / atlas.height);
-    return std::pair{ uv0, uv1 };
-    };
-  auto [uv0New, uv1New] = toUV(uvNew);
-  auto [uv0Open, uv1Open] = toUV(uvOpen);
-  auto [uv0Save, uv1Save] = toUV(uvSave);
-  auto [uv0Play, uv1Play] = toUV(uvPlay);
-  auto [uv0Pause, uv1Pause] = toUV(uvPause);
-  auto [uv0Stop, uv1Stop] = toUV(uvStop);
-
-  ImTextureID tex = (ImTextureID)(intptr_t)atlas.id;
-  ImVec2 iconSize(_context->prefs.ui.toolbar.buttonSize, _context->prefs.ui.toolbar.buttonSize);
-
   if (drawToolbarIcon("##new", coord2d_t(0, 0), "New (Ctrl+N)")) {/*...*/ }
   ImGui::SameLine();
-  if (drawToolbarIcon("##open", tex, uv0Open, uv1Open, iconSize, true, "Open (Ctrl+O)")) {/*...*/ }
+  if (drawToolbarIcon("##open", coord2d_t(1, 0), "Open (Ctrl+O)")) {/*...*/ }
   ImGui::SameLine();
 
   // separatore
@@ -199,11 +209,12 @@ void DrawToolbar(UI* ui, Context* _context, Texture2D atlas, Rectangle uvNew, Re
   ImGui::SameLine();
 
   // se toggle play è attivo, mostra pause/stop, altrimenti play
-  if (drawToolbarIcon("##show-palette", coord2d_t(3, 0), "Show Palette (Space)"))
-    ui->_paletteWindowVisible = !ui->_paletteWindowVisible;
-  if (drawToolbarIcon("##show-stud-mode", coord2d_t(4, 0), "Show Stud Mode (Space)"))
-    ui->_studWindowVisible = !ui->_studWindowVisible;
-  
+  if (drawToolbarIcon("##show-palette", coord2d_t(3, 0), "Show Palette"))
+    _paletteWindowVisible = !_paletteWindowVisible;
+  ImGui::SameLine();
+  if (drawToolbarIcon("##show-stud-mode", coord2d_t(4, 0), "Show Stud Mode"))
+    _studWindowVisible = !_studWindowVisible;
+
   // scorciatoie da tastiera
   bool ctrl = io.KeyCtrl;
   if (ctrl && ImGui::IsKeyPressed(ImGuiKey_N)) {/* new */ }
@@ -216,14 +227,12 @@ void DrawToolbar(UI* ui, Context* _context, Texture2D atlas, Rectangle uvNew, Re
   ImGui::PopStyleVar();
 }
 
-UI::UI(Context* context) : _context(context), _paletteWindowVisible(false), _studWindowVisible(false)
+void UI::draw()
 {
-  _icons = LoadTexture((_context->prefs.basePath + "/icons.png").c_str());
-}
+  drawPaletteWindow();
+  
+  if (_studWindowVisible)
+    drawStudModeWindow();
 
-void UI::drawToolbar()
-{
-  DrawToolbar(this, _context, _icons, Rectangle{0, 0, 64, 64}, Rectangle{64, 0, 64, 64}, Rectangle{128, 0, 64, 64},
-              Rectangle{196, 0, 64, 64}, Rectangle{64 * 4, 0, 64, 64}, Rectangle{64 * 5, 0, 64, 64});
+  drawToolbar();
 }
-

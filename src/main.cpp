@@ -259,35 +259,9 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
 }
 
 
-
-
-inline std::optional<nb::StudMode> DrawStudModeWindow(const nb::StudMode& current)
-{
-  std::optional<nb::StudMode> result;
-  int modeInt = static_cast<int>(current);
-
-  if (ImGui::Begin("Studs", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
-  {
-    if (ImGui::RadioButton("Full", modeInt == static_cast<int>(nb::StudMode::Full)))
-      modeInt = static_cast<int>(nb::StudMode::Full);
-
-    if (ImGui::RadioButton("Centered", modeInt == static_cast<int>(nb::StudMode::Centered)))
-      modeInt = static_cast<int>(nb::StudMode::Centered);
-
-    if (ImGui::RadioButton("None", modeInt == static_cast<int>(nb::StudMode::None)))
-      modeInt = static_cast<int>(nb::StudMode::None);
-
-    // Se è cambiato rispetto a current → restituisci nuovo valore
-    if (modeInt != static_cast<int>(current))
-      result = static_cast<nb::StudMode>(modeInt);
-  }
-  ImGui::End();
-
-  return result;
-}
-
 int main(int arg, char* argv[])
 {
+  SetConfigFlags(FLAG_MSAA_4X_HINT);
   InitWindow(1280, 800, "Nanoforge v0.0.1a");
 
   Context context;
@@ -296,7 +270,6 @@ int main(int arg, char* argv[])
   gfx::Renderer* renderer = context.renderer.get();
   InputHandler* input = context.input.get();
 
-  SetConfigFlags(FLAG_MSAA_4X_HINT);
 
   renderer->init();
 
@@ -361,14 +334,8 @@ int main(int arg, char* argv[])
     }
 
     rlImGuiBegin();
-    
-    context.ui->drawPaletteWindow();
 
-    auto newStudMode = DrawStudModeWindow(context.brush->studs());
-    if (newStudMode)
-      context.brush->setStuds(*newStudMode);
-
-    context.ui->drawToolbar();
+    context.ui->draw();
 
     ImGuiIO& io = ImGui::GetIO();
     bool blockMouse = io.WantCaptureMouse;

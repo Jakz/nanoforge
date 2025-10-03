@@ -14,9 +14,9 @@ protected:
   
   std::pair<ImVec2, ImVec2> toUV(const Rectangle& r, const Texture2D& atlas) const;
   
-  bool drawToolbarIcon(const char* ident, coord2d_t icon, const char* caption);
+  bool drawToolbarIcon(const char* ident, coord2d_t icon, const char* caption) const;
 
-public:
+protected:
   bool _paletteWindowVisible;
   bool _studWindowVisible;
   
@@ -24,5 +24,8 @@ public:
   UI(Context* context);
   
   void drawPaletteWindow();
+  void drawStudModeWindow();
   void drawToolbar();
+
+  void draw();
 };
