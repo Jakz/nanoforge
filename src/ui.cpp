@@ -141,9 +141,27 @@ static bool IconButton(const char* id, ImTextureID tex, const ImVec2& uv0, const
   return pressed;
 }
 
+std::pair<ImVec2, ImVec2> toUV(const Rectangle& r, const Texture2D& atlas) const
+{
+
+  
+}
+
+bool UI::drawToolbarIcon(const char* ident, coord2d_t icon, const char* caption)
+{
+  constexpr float iconTextureSize = 64.0f;
+  ImVec2 iconSize(_context->prefs.ui.toolbar.buttonSize, _context->prefs.ui.toolbar.buttonSize);
+
+  ImTextureID texture = (ImTextureID)(intptr_t)_icons.id;
+  
+  ImVec2 uv0((icon.x * iconTextureSize) / _icons.width, (icon.y * iconTextureSize) / _icons.height);
+  ImVec2 uv1(((icon.x + 1) * iconTextureSize) / _icons.width, ((icon.y + 1) * iconTextureSize) / _icons.height);
+  
+  return IconButton(ident, texture, uv0, uv1, iconSize, true, caption);
+}
+
 void DrawToolbar(UI* ui, Context* _context, Texture2D atlas, Rectangle uvNew, Rectangle uvOpen, Rectangle uvSave,
-  Rectangle uvPlay, Rectangle uvPause, Rectangle uvStop,
-  bool canSave, bool isPlaying)
+  Rectangle uvPlay, Rectangle uvPause, Rectangle uvStop)
 {
   ImGuiIO& io = ImGui::GetIO();
   // finestra a tutta larghezza, senza bordi
@@ -170,11 +188,10 @@ void DrawToolbar(UI* ui, Context* _context, Texture2D atlas, Rectangle uvNew, Re
   ImTextureID tex = (ImTextureID)(intptr_t)atlas.id;
   ImVec2 iconSize(_context->prefs.ui.toolbar.buttonSize, _context->prefs.ui.toolbar.buttonSize);
 
-  if (IconButton("##new", tex, uv0New, uv1New, iconSize, true, "New (Ctrl+N)")) {/*...*/ }
+  if (drawToolbarIcon("##new", coord2d_t(0, 0), "New (Ctrl+N)")) {/*...*/ }
   ImGui::SameLine();
-  if (IconButton("##open", tex, uv0Open, uv1Open, iconSize, true, "Open (Ctrl+O)")) {/*...*/ }
+  if (drawToolbarIcon("##open", tex, uv0Open, uv1Open, iconSize, true, "Open (Ctrl+O)")) {/*...*/ }
   ImGui::SameLine();
-  if (IconButton("##save", tex, uv0Save, uv1Save, iconSize, canSave, "Save (Ctrl+S)")) {/*...*/ }
 
   // separatore
   ImGui::SameLine();
@@ -182,14 +199,16 @@ void DrawToolbar(UI* ui, Context* _context, Texture2D atlas, Rectangle uvNew, Re
   ImGui::SameLine();
 
   // se toggle play è attivo, mostra pause/stop, altrimenti play
-  if (IconButton("##play", tex, uv0Play, uv1Play, iconSize, true, "Play (Space)"))
+  if (drawToolbarIcon("##show-palette", coord2d_t(3, 0), "Show Palette (Space)"))
     ui->_paletteWindowVisible = !ui->_paletteWindowVisible;
-
+  if (drawToolbarIcon("##show-stud-mode", coord2d_t(4, 0), "Show Stud Mode (Space)"))
+    ui->_studWindowVisible = !ui->_studWindowVisible;
+  
   // scorciatoie da tastiera
   bool ctrl = io.KeyCtrl;
   if (ctrl && ImGui::IsKeyPressed(ImGuiKey_N)) {/* new */ }
   if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O)) {/* open */ }
-  if (ctrl && ImGui::IsKeyPressed(ImGuiKey_S) && canSave) {/* save */ }
+  if (ctrl && ImGui::IsKeyPressed(ImGuiKey_S)) {/* save */ }
   if (ImGui::IsKeyPressed(ImGuiKey_Space)) {/* play/pause toggle */ }
   if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Space)) {/* stop */ }
 
@@ -205,6 +224,6 @@ UI::UI(Context* context) : _context(context), _paletteWindowVisible(false), _stu
 void UI::drawToolbar()
 {
   DrawToolbar(this, _context, _icons, Rectangle{0, 0, 64, 64}, Rectangle{64, 0, 64, 64}, Rectangle{128, 0, 64, 64},
-              Rectangle{196, 0, 64, 64}, Rectangle{64 * 4, 0, 64, 64}, Rectangle{64 * 5, 0, 64, 64}, true, false);
+              Rectangle{196, 0, 64, 64}, Rectangle{64 * 4, 0, 64, 64}, Rectangle{64 * 5, 0, 64, 64});
 }
 
