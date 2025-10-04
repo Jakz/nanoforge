@@ -181,7 +181,7 @@ bool UI::drawToolbarIcon(const char* ident, coord2d_t icon, const char* caption)
 }
 
 
-UI::UI(Context* context) : _context(context), _paletteWindowVisible(false), _studWindowVisible(false)
+UI::UI(Context* context) : _context(context), _paletteWindowVisible(true), _studWindowVisible(true)
 {
   _icons = LoadTexture((_context->prefs.basePath + "/icons.png").c_str());
 }

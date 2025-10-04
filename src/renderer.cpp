@@ -1,4 +1,4 @@
-#include "renderer.h"
+﻿#include "renderer.h"
 
 #include "context.h"
 #include "input.h"
@@ -157,6 +157,159 @@ void DrawCylinderWireframe(Vector3 center, float radius, float height, int segme
   DrawCylinderEx(b0, b1, 0.04f, 0.04f, 8, col);
 }
 
+#include "par_shapes.h"
+#include <array>
+
+static void par_shapes__hemicylinder(float const* uv, float* xyz, void* userdata)
+{
+  float theta = uv[1] * 1 * PAR_PI;
+  xyz[0] = sinf(theta);
+  xyz[1] = cosf(theta);
+  xyz[2] = uv[0];
+}
+
+
+static void par_shapes__cross3(float* result, float const* a, float const* b)
+{
+  float x = (a[1] * b[2]) - (a[2] * b[1]);
+  float y = (a[2] * b[0]) - (a[0] * b[2]);
+  float z = (a[0] * b[1]) - (a[1] * b[0]);
+  result[0] = x;
+  result[1] = y;
+  result[2] = z;
+}
+
+static void par_shapes__mix3(float* d, float const* a, float const* b, float t)
+{
+  float x = b[0] * t + a[0] * (1 - t);
+  float y = b[1] * t + a[1] * (1 - t);
+  float z = b[2] * t + a[2] * (1 - t);
+  d[0] = x;
+  d[1] = y;
+  d[2] = z;
+}
+
+static void par_shapes__scale3(float* result, float a)
+{
+  result[0] *= a;
+  result[1] *= a;
+  result[2] *= a;
+}
+static void par_shapes__normalize3(float* v)
+{
+  float lsqr = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  if (lsqr > 0) {
+    par_shapes__scale3(v, 1.0f / lsqr);
+  }
+}
+
+par_shapes_mesh* par_shapes_create_hemidisk(float radius, int slices,
+  float const* center, float const* normal)
+{
+  par_shapes_mesh* mesh = PAR_CALLOC(par_shapes_mesh, 1);
+  mesh->npoints = slices + 1 + 1;
+  mesh->points = PAR_MALLOC(float, 3 * mesh->npoints);
+  float* points = mesh->points;
+  *points++ = 0;
+  *points++ = 0;
+  *points++ = 0;
+  for (int i = 0; i < slices + 1; i++) {
+    float theta = i * PAR_PI / slices;
+    *points++ = radius * cos(theta);
+    *points++ = radius * sin(theta);
+    *points++ = 0;
+  }
+  float nnormal[3] = { normal[0], normal[1], normal[2] };
+  par_shapes__normalize3(nnormal);
+  mesh->normals = PAR_MALLOC(float, 3 * mesh->npoints);
+  float* norms = mesh->normals;
+  for (int i = 0; i < mesh->npoints; i++) {
+    *norms++ = nnormal[0];
+    *norms++ = nnormal[1];
+    *norms++ = nnormal[2];
+  }
+  mesh->ntriangles = slices;
+  mesh->triangles = PAR_MALLOC(PAR_SHAPES_T, 3 * mesh->ntriangles);
+  PAR_SHAPES_T* triangles = mesh->triangles;
+  for (int i = 0; i < slices; i++)
+  {
+    *triangles++ = 0;
+    *triangles++ = 1 + i;
+    *triangles++ = 1 + (i + 1);
+  }
+  float k[3] = { 0, 0, -1 };
+  float axis[3];
+  par_shapes__cross3(axis, nnormal, k);
+  par_shapes__normalize3(axis);
+  par_shapes_rotate(mesh, acos(nnormal[2]), axis);
+  par_shapes_translate(mesh, center[0], center[1], center[2]);
+  return mesh;
+}
+
+Mesh GenMeshHemiCylinder(float radius, float height, int slices)
+{
+  Mesh mesh = { 0 };
+
+  // Instance a cylinder that sits on the Z=0 plane using the given tessellation
+  // levels across the UV domain.  Think of "slices" like a number of pizza
+  // slices, and "stacks" like a number of stacked rings
+  // Height and radius are both 1.0, but they can easily be changed with par_shapes_scale
+  par_shapes_mesh* cylinder = par_shapes_create_parametric(par_shapes__hemicylinder, slices, 1, 0);
+  par_shapes_scale(cylinder, radius, radius, height);
+  par_shapes_rotate(cylinder, -PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
+
+  
+  // Generate an orientable disk shape (top cap)
+  par_shapes_mesh* capTop = par_shapes_create_hemidisk(radius, slices, std::array<float, 3>{ 0, 0, 0 }.data(), std::array<float, 3>{ 0, 0, 1 }.data());
+  capTop->tcoords = PAR_MALLOC(float, 2 * capTop->npoints);
+  for (int i = 0; i < 2 * capTop->npoints; i++) capTop->tcoords[i] = 0.0f;
+  par_shapes_rotate(capTop, -PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
+  par_shapes_rotate(capTop, -90 * DEG2RAD, std::array<float, 3>{ 0, 1, 0 }.data());
+  par_shapes_translate(capTop, 0, height, 0);
+
+  // Generate an orientable disk shape (bottom cap)
+  par_shapes_mesh* capBottom = par_shapes_create_hemidisk(radius, slices, std::array<float, 3>{ 0, 0, 0 }.data(), std::array<float, 3>{ 0, 0, -1 }.data());
+  capBottom->tcoords = PAR_MALLOC(float, 2 * capBottom->npoints);
+  for (int i = 0; i < 2 * capBottom->npoints; i++) capBottom->tcoords[i] = 0.95f;
+  par_shapes_rotate(capBottom, PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
+  par_shapes_rotate(capBottom, -90 * DEG2RAD, std::array<float, 3>{ 0, 1, 0 }.data());
+
+  par_shapes_merge_and_free(cylinder, capTop);
+  par_shapes_merge_and_free(cylinder, capBottom);
+  
+
+  size_t triangles = cylinder->ntriangles;
+
+  mesh.vertices = (float*)RL_MALLOC(triangles * 3 * 3 * sizeof(float));
+  mesh.texcoords = (float*)RL_MALLOC(triangles * 3 * 2 * sizeof(float));
+  mesh.normals = (float*)RL_MALLOC(triangles * 3 * 3 * sizeof(float));
+
+  mesh.vertexCount = triangles * 3;
+  mesh.triangleCount = triangles;
+
+  for (int k = 0; k < mesh.vertexCount; k++)
+  {
+    mesh.vertices[k * 3] = cylinder->points[cylinder->triangles[k] * 3];
+    mesh.vertices[k * 3 + 1] = cylinder->points[cylinder->triangles[k] * 3 + 1];
+    mesh.vertices[k * 3 + 2] = cylinder->points[cylinder->triangles[k] * 3 + 2];
+
+    mesh.normals[k * 3] = cylinder->normals[cylinder->triangles[k] * 3];
+    mesh.normals[k * 3 + 1] = cylinder->normals[cylinder->triangles[k] * 3 + 1];
+    mesh.normals[k * 3 + 2] = cylinder->normals[cylinder->triangles[k] * 3 + 2];
+
+    mesh.texcoords[k * 2] = cylinder->tcoords[cylinder->triangles[k] * 2];
+    mesh.texcoords[k * 2 + 1] = cylinder->tcoords[cylinder->triangles[k] * 2 + 1];
+  }
+
+  par_shapes_free_mesh(cylinder);
+
+  // Upload vertex data to GPU (static mesh)
+  UploadMesh(&mesh, false);
+
+  ExportMesh(mesh, "cylinder.obj");
+
+  return mesh;
+}
 
 //TODO: these are duplicated from main.cpp, move to a common header
 constexpr float side = 3.8f;   // lato
@@ -176,7 +329,8 @@ void gfx::Renderer::init()
   materials.flatMaterial.shader = shaders.flatShading.shader;
   
   _cubeBatch.setup(raylib::MeshUnmanaged::Cube(side, height, side), &shaders.flatShading);
-  _cylinderBatch.setup(raylib::MeshUnmanaged::Cylinder(side / 2, height, 32), &shaders.flatShading);
+  //_cylinderBatch.setup(raylib::MeshUnmanaged::Cylinder(side / 2, height, 32), &shaders.flatShading);
+  _cylinderBatch.setup(GenMeshHemiCylinder(side / 2, height, 32), &shaders.flatShading);
   _studBatch.setup(raylib::MeshUnmanaged::Cylinder(studDiameter / 2.0f, studHeight, 32), &shaders.flatShading);
 
   /* we need to shift all vertices of cylinder because it's zero aligned */
