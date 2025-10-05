@@ -9,6 +9,8 @@
 #include "model/model.h"
 #include "defines.h"
 
+typedef struct par_shapes_mesh_s par_shapes_mesh;
+
 namespace gfx
 {
   struct InstanceData
@@ -22,6 +24,8 @@ namespace gfx
     std::array<float, 3> position;
   };
 
+  using TriangleNormal = std::array<float, 3>;
+
   struct MeshTriangle
   {
     std::array<uint16_t, 3> index;
@@ -30,7 +34,10 @@ namespace gfx
   struct MyMesh
   {
     std::vector<MeshVertex> vertices;
+    std::vector<TriangleNormal> normals;
     std::vector<MeshTriangle> triangles;
+
+    void generateAndFree(par_shapes_mesh* shape);
   };
 
   class Batch
@@ -39,9 +46,9 @@ namespace gfx
     MyMesh _mesh;
     
     unsigned int _vaoID;
-    unsigned int _vboIDs[4];
+    unsigned int _vboIDs[5];
 
-    unsigned int _vboVertices, _vboIndices, _vboTransforms, _vboColorShades;
+    unsigned int _vboVertices, _vboNormals, _vboIndices, _vboTransforms, _vboColorShades;
   
     /* per instance data */
     std::vector<float16> _colorShadesData;
@@ -107,7 +114,8 @@ namespace gfx
     } materials;
 
     MyMesh generateCube();
-    MyMesh generateCylinder();
+    MyMesh generateCylinder(bool isStud);
+    MyMesh generateHalfCylinder();
 
   public:
     static constexpr int EDGE_COMPLEXITY = 6;

@@ -39,7 +39,7 @@ flat out mat4 vColorShades;
 void main()
 {
   mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
-  vNormalWorld = normalize(mat3(instanceTransform) * vertexNormal);
+  vNormalWorld = vertexNormal; //normalize(mat3(instanceTransform) * vertexNormal);
   vColorShades = colorShades;
 
   gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
@@ -69,7 +69,7 @@ void main()
     fragColor = (normal.x > 0.0) ? vColorShades[2] : vColorShades[1];
   }
 
-  fragColor = vColorShades[0];
+  fragColor = vec4(vNormalWorld, 1.0); //vColorShades[0];
 }
 )";
 
@@ -238,10 +238,6 @@ Mesh GenMeshHemiCylinder(float radius, float height, int slices)
 {
   Mesh mesh = { 0 };
 
-  // Instance a cylinder that sits on the Z=0 plane using the given tessellation
-  // levels across the UV domain.  Think of "slices" like a number of pizza
-  // slices, and "stacks" like a number of stacked rings
-  // Height and radius are both 1.0, but they can easily be changed with par_shapes_scale
   par_shapes_mesh* cylinder = par_shapes_create_parametric(par_shapes__hemicylinder, slices, 1, 0);
   par_shapes_scale(cylinder, radius, radius, height);
   par_shapes_rotate(cylinder, -PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
@@ -303,6 +299,29 @@ constexpr float side = 3.8f;   // lato
 constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
 constexpr float studDiameter = 2.5f;
+constexpr int slices = 32;
+
+void gfx::MyMesh::generateAndFree(par_shapes_mesh* shape)
+{
+  vertices.resize(shape->npoints);
+  normals.resize(shape->npoints);
+  triangles.resize(shape->ntriangles);
+
+  //par_shapes_weld(shape, 0.001f, nullptr);
+
+  std::memcpy(vertices.data(), shape->points, shape->npoints * sizeof(gfx::MeshVertex));
+  std::memcpy(normals.data(), shape->normals, shape->npoints * sizeof(TriangleNormal));
+
+
+  for (size_t i = 0; i < shape->ntriangles; ++i)
+  {
+    triangles[i].index[0] = shape->triangles[i * 3 + 0];
+    triangles[i].index[1] = shape->triangles[i * 3 + 1];
+    triangles[i].index[2] = shape->triangles[i * 3 + 2];
+  }
+
+  par_shapes_free_mesh(shape);
+}
 
 gfx::MyMesh gfx::Renderer::generateCube()
 {
@@ -312,53 +331,74 @@ gfx::MyMesh gfx::Renderer::generateCube()
   par_shapes_mesh* shape = par_shapes_create_cube();
   par_shapes_translate(shape, -0.5f, -0.5f, -0.5f);
   par_shapes_scale(shape, side, height, side);
+
+  par_shapes_unweld(shape, true);
+  par_shapes_compute_normals(shape);
   
   gfx::MyMesh mesh;
-  mesh.vertices.resize(shape->npoints);
-  mesh.triangles.resize(shape->ntriangles);
-  
-  std::memcpy(mesh.vertices.data(), shape->points, shape->npoints * sizeof(gfx::MeshVertex));
-  for (size_t i = 0; i < shape->ntriangles; ++i)
-  {
-    mesh.triangles[i].index[0] = shape->triangles[i * 3 + 0];
-    mesh.triangles[i].index[1] = shape->triangles[i * 3 + 1];
-    mesh.triangles[i].index[2] = shape->triangles[i * 3 + 2];
-  }
-  
-  par_shapes_free_mesh(shape);
+  mesh.generateAndFree(shape);
+
 
   return mesh;
 }
 
-gfx::MyMesh gfx::Renderer::generateCylinder()
+gfx::MyMesh gfx::Renderer::generateCylinder(bool stud)
 {
-  par_shapes_mesh* shape = par_shapes_create_cylinder(32, 1);
+  par_shapes_mesh* shape = par_shapes_create_cylinder(slices, 1);
   par_shapes_rotate(shape, -PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
   par_shapes_scale(shape, side / 2.0f, height, side / 2.0f);
   par_shapes_translate(shape, 0, - height * 0.5f, 0);
   
-  par_shapes_mesh* top = par_shapes_create_disk(side / 2.0f, 32, std::array<float, 3>{ 0, height / 2, 0 }.data(), std::array<float, 3>{ 0, 1, 0 }.data());
-  par_shapes_mesh* bottom = par_shapes_create_disk(side / 2.0f, 32, std::array<float, 3>{ 0, -height / 2, 0 }.data(), std::array<float, 3>{ 0, -1, 0 }.data());
+  par_shapes_mesh* top = par_shapes_create_disk(side / 2.0f, slices, std::array<float, 3>{ 0, height / 2, 0 }.data(), std::array<float, 3>{ 0, 1, 0 }.data());
+  par_shapes_mesh* bottom = par_shapes_create_disk(side / 2.0f, slices, std::array<float, 3>{ 0, -height / 2, 0 }.data(), std::array<float, 3>{ 0, -1, 0 }.data());
 
   par_shapes_merge(shape, top);
   par_shapes_merge(shape, bottom);
 
+  par_shapes_unweld(shape, true);
+  par_shapes_compute_normals(shape);
+
   gfx::MyMesh mesh;
-  mesh.vertices.resize(shape->npoints);
-  mesh.triangles.resize(shape->ntriangles);
-
-  std::memcpy(mesh.vertices.data(), shape->points, shape->npoints * sizeof(gfx::MeshVertex));
-  for (size_t i = 0; i < shape->ntriangles; ++i)
-  {
-    mesh.triangles[i].index[0] = shape->triangles[i * 3 + 0];
-    mesh.triangles[i].index[1] = shape->triangles[i * 3 + 1];
-    mesh.triangles[i].index[2] = shape->triangles[i * 3 + 2];
-  }
-
-  par_shapes_free_mesh(shape);
+  mesh.generateAndFree(shape);
 
   return mesh;
+}
 
+gfx::MyMesh gfx::Renderer::generateHalfCylinder()
+{
+  par_shapes_mesh* shape = par_shapes_create_parametric(par_shapes__hemicylinder, slices, 1, 0);
+  par_shapes_rotate(shape, -PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
+  par_shapes_scale(shape, side / 2.0f, height, side / 2.0f);
+
+  par_shapes_mesh* capTop = par_shapes_create_hemidisk(side / 2.0f, slices, std::array<float, 3>{ 0, 0, 0 }.data(), std::array<float, 3>{ 0, 0, 1 }.data());
+  capTop->tcoords = PAR_MALLOC(float, 2 * capTop->npoints);
+  for (int i = 0; i < 2 * capTop->npoints; i++) capTop->tcoords[i] = 0.0f;
+  par_shapes_rotate(capTop, -PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
+  par_shapes_rotate(capTop, -90 * DEG2RAD, std::array<float, 3>{ 0, 1, 0 }.data());
+  par_shapes_translate(capTop, 0, height, 0);
+
+  par_shapes_mesh* capBottom = par_shapes_create_hemidisk(side / 2.0f, slices, std::array<float, 3>{ 0, 0, 0 }.data(), std::array<float, 3>{ 0, 0, -1 }.data());
+  capBottom->tcoords = PAR_MALLOC(float, 2 * capBottom->npoints);
+  for (int i = 0; i < 2 * capBottom->npoints; i++) capBottom->tcoords[i] = 0.95f;
+  par_shapes_rotate(capBottom, PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
+  par_shapes_rotate(capBottom, -90 * DEG2RAD, std::array<float, 3>{ 0, 1, 0 }.data());
+
+  par_shapes_mesh* wall = par_shapes_create_plane(1, 1);
+  par_shapes_rotate(wall, -PI / 2.0f, std::array<float, 3>{ 0, 1, 0 }.data());
+  par_shapes_scale(wall, 1.0f, height, side);
+  par_shapes_translate(wall, 0, 0, - side / 2.0f);
+
+  par_shapes_merge_and_free(shape, capTop);
+  par_shapes_merge_and_free(shape, capBottom);
+  par_shapes_merge_and_free(shape, wall);
+
+  par_shapes_translate(shape, 0, -height * 0.5f, 0);
+
+
+  gfx::MyMesh mesh;
+  mesh.generateAndFree(shape);
+
+  return mesh;
 }
 
 gfx::Renderer::Renderer(Context* context) : _context(context), _topDown(context) { }
@@ -375,7 +415,7 @@ void gfx::Renderer::init()
   //_cubeBatch.setup(raylib::MeshUnmanaged::Cube(side, height, side), &shaders.flatShading);
   _cubeBatch.setup(generateCube(), &shaders.flatShading);
 
-  _cylinderBatch.setup(generateCylinder(), &shaders.flatShading);
+  _cylinderBatch.setup(generateCylinder(false), &shaders.flatShading);
   //_cylinderBatch.setup(raylib::MeshUnmanaged::Cylinder(side / 2, height, 32), &shaders.flatShading);
   //_cylinderBatch.setup(GenMeshHemiCylinder(side / 2, height, 32), &shaders.flatShading);
 
@@ -624,7 +664,11 @@ void gfx::Batch::draw(const Material& material)
       rlDrawVertexArrayInstanced(0, _oldMesh.vertexCount, _instanceData.size());
   }
   else
-    rlDrawVertexArrayElementsInstanced(0, _mesh.triangles.size() * 3, 0, _instanceData.size());
+  {
+    rlDrawVertexArrayInstanced(0, _mesh.vertices.size(), _instanceData.size());
+    //rlDrawVertexArrayElementsInstanced(0, _mesh.triangles.size() * 3, 0, _instanceData.size());
+  }
+  
 
 
   // Unbind all bound texture maps
@@ -663,26 +707,36 @@ void gfx::Batch::setup(MyMesh&& mesh, FlatShader* shader)
   _vaoID = rlLoadVertexArray();
   /* enable it for future buffer binding */
 
+
   /* now we need to generate all buffers: vertices, indices, transforms, colors */
-  glGenBuffers(4, &_vboIDs[0]);
+  glGenBuffers(5, &_vboIDs[0]);
 
   _vboVertices = _vboIDs[0];
-  _vboIndices = _vboIDs[1];
-  _vboTransforms = _vboIDs[2];
-  _vboColorShades = _vboIDs[3];
+  _vboNormals = _vboIDs[1];
+  _vboIndices = _vboIDs[2];
+  _vboTransforms = _vboIDs[3];
+  _vboColorShades = _vboIDs[4];
 
-  GLuint positionLocation = shader->shader.locs[SHADER_LOC_VERTEX_POSITION];
+  GLuint positionLocation = shader->shader.GetLocationAttrib("vertexPosition");
+  GLuint positionNormal = shader->shader.GetLocationAttrib("vertexNormal");
 
   rlEnableVertexArray(_vaoID);
-
+  /* prepare vertices */
   rlEnableVertexBuffer(_vboVertices);
   glBufferData(GL_ARRAY_BUFFER, _mesh.vertices.size() * sizeof(MeshVertex), _mesh.vertices.data(), GL_STATIC_DRAW);
-
   rlEnableVertexAttribute(positionLocation);
   rlSetVertexAttribute(positionLocation, 3, RL_FLOAT, 0, sizeof(MeshVertex), offsetof(MeshVertex, position));
 
+  /* prepare normals */
+  rlEnableVertexBuffer(_vboNormals);
+  glBufferData(GL_ARRAY_BUFFER, _mesh.normals.size() * sizeof(TriangleNormal), _mesh.normals.data(), GL_STATIC_DRAW);
+  rlEnableVertexAttribute(positionNormal);
+  rlSetVertexAttribute(positionNormal, 3, RL_FLOAT, 0, sizeof(TriangleNormal), 0);
+
+  /*
   rlEnableVertexBufferElement(_vboIndices);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, _mesh.triangles.size() * sizeof(MeshTriangle), _mesh.triangles.data(), GL_STATIC_DRAW);
+  */
 
   rlEnableVertexBuffer(_vboTransforms);
   for (unsigned int i = 0; i < 4; i++)
@@ -748,7 +802,7 @@ void gfx::Batch::release()
   {
     _oldMesh.Unload();
   }
-  glDeleteBuffers(4, &_vboIDs[0]);
+  glDeleteBuffers(5, &_vboIDs[0]);
 }
 
 void gfx::Batch::update()
