@@ -1,4 +1,4 @@
-﻿#include "renderer.h"
+#include "renderer.h"
 
 #include "context.h"
 #include "input.h"
@@ -9,12 +9,7 @@ nb::layer_iterator_t gfx::TopDownGrid::begin() const
     _context->renderer->_topDown._offset + _context->renderer->_topDown._shown - 1,
     _context->model->lastLayerIndex()
   );
-
-  layer_index_t shown = std::min(
-    topMostLayer,
-    _context->model->layerCount()
-  );
-
+  
   return nb::layer_iterator_t(topMostLayer, 0);
 }
 
@@ -78,13 +73,6 @@ void main()
 }
 )";
 
-// Replica la trasform di DrawModel: T(pos) * R(rot) * S(scale) * model.transform
-static inline Matrix MakeDrawTransform(Vector3 pos, float scale, Matrix rot, const raylib::Matrix& modelMatrix) {
-  Matrix S = MatrixScale(scale, scale, scale);
-  Matrix TS = MatrixMultiply(S, modelMatrix);          // S * model.transform
-  Matrix T = MatrixTranslate(pos.x, pos.y, pos.z);
-  return MatrixMultiply(T, TS);                            // T * (S * model.transform)
-}
 
 // Disegna i 12 bordi del cubo dato centro e dimensioni (in local space) + trasform finale
 static inline void DrawCubeEdgesFast(float w, float h, float d, const Matrix& world, Color col)
@@ -311,6 +299,44 @@ Mesh GenMeshHemiCylinder(float radius, float height, int slices)
   return mesh;
 }
 
+struct MeshVertex
+{
+  std::array<float, 3> position;
+};
+
+struct MeshTriangle
+{
+  std::array<uint16_t, 3> index;
+};
+
+struct MyMesh
+{
+  std::vector<MeshVertex> vertices;
+  std::vector<MeshTriangle> triangles;
+};
+
+void generateCube()
+{
+  static_assert(sizeof(MeshVertex) == sizeof(float) * 3);
+  static_assert(sizeof(MeshTriangle) == sizeof(uint16_t) * 3);
+  
+  par_shapes_mesh* parCube = par_shapes_create_cube();
+  
+  MyMesh mesh;
+  mesh.vertices.resize(parCube->npoints);
+  mesh.triangles.resize(parCube->ntriangles);
+  
+  std::memcpy(mesh.vertices.data(), parCube->points, parCube->npoints * sizeof(MeshVertex));
+  for (size_t i = 0; i < parCube->ntriangles; ++i)
+  {
+    mesh.triangles[i].index[0] = parCube->triangles[i * 3 + 0];
+    mesh.triangles[i].index[1] = parCube->triangles[i * 3 + 1];
+    mesh.triangles[i].index[2] = parCube->triangles[i * 3 + 2];
+  }
+  
+  par_shapes_free_mesh(parCube);
+}
+
 //TODO: these are duplicated from main.cpp, move to a common header
 constexpr float side = 3.8f;   // lato
 constexpr float height = 3.1f;
@@ -343,6 +369,8 @@ void gfx::Renderer::init()
   _shapeBatches.resize(2);
   _shapeBatches[0] = &_cubeBatch;
   _shapeBatches[1] = &_cylinderBatch;
+  
+  generateCube();
 }
 
 void gfx::Renderer::deinit()
