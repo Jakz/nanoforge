@@ -17,14 +17,31 @@ namespace gfx
     const nb::PieceColor* color;
   };
 
+  struct MeshVertex
+  {
+    std::array<float, 3> position;
+  };
+
+  struct MeshTriangle
+  {
+    std::array<uint16_t, 3> index;
+  };
+
+  struct MyMesh
+  {
+    std::vector<MeshVertex> vertices;
+    std::vector<MeshTriangle> triangles;
+  };
+
   class Batch
   {
-    raylib::MeshUnmanaged _mesh;
+    raylib::MeshUnmanaged _oldMesh;
+    MyMesh _mesh;
     
     unsigned int _vaoID;
-    unsigned int _vboIDs[3];
+    unsigned int _vboIDs[4];
 
-    unsigned int _vboVertices, _vboTransforms, _vboColorShades;
+    unsigned int _vboVertices, _vboIndices, _vboTransforms, _vboColorShades;
   
     /* per instance data */
     std::vector<float16> _colorShadesData;
@@ -32,7 +49,7 @@ namespace gfx
 
     std::vector<InstanceData> _instanceData;
 
-    void update(const Mesh& mesh);
+    void update();
 
   public:
     ~Batch();
@@ -41,8 +58,10 @@ namespace gfx
     void release();
     void draw(const Material& material);
 
-    auto& mesh() { return _mesh; }
+    auto& mesh() { return _oldMesh; }
     auto& instanceData() { return _instanceData; }
+
+    void setup(MyMesh&& mesh, FlatShader* shader);
   };
 
   class TopDownGrid
@@ -86,6 +105,9 @@ namespace gfx
     {
       raylib::Material flatMaterial;
     } materials;
+
+    MyMesh generateCube();
+    MyMesh generateCylinder();
 
   public:
     static constexpr int EDGE_COMPLEXITY = 6;

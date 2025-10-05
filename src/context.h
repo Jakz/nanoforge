@@ -17,6 +17,7 @@ struct Preferences
 {
   struct
   {
+    bool drawUI = true;
     bool drawHoverOnAllLayers = true;
     struct
     {
@@ -32,6 +33,13 @@ struct Preferences
 
     } grid;
   } ui;
+
+  struct
+  {
+    bool drawEdges = true;
+    bool drawStuds = true;
+
+  } renderer;
   
   std::string basePath;
 

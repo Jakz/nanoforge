@@ -265,7 +265,6 @@ Mesh GenMeshHemiCylinder(float radius, float height, int slices)
   par_shapes_merge_and_free(cylinder, capTop);
   par_shapes_merge_and_free(cylinder, capBottom);
   
-
   size_t triangles = cylinder->ntriangles;
 
   mesh.vertices = (float*)RL_MALLOC(triangles * 3 * 3 * sizeof(float));
@@ -299,49 +298,68 @@ Mesh GenMeshHemiCylinder(float radius, float height, int slices)
   return mesh;
 }
 
-struct MeshVertex
-{
-  std::array<float, 3> position;
-};
-
-struct MeshTriangle
-{
-  std::array<uint16_t, 3> index;
-};
-
-struct MyMesh
-{
-  std::vector<MeshVertex> vertices;
-  std::vector<MeshTriangle> triangles;
-};
-
-void generateCube()
-{
-  static_assert(sizeof(MeshVertex) == sizeof(float) * 3);
-  static_assert(sizeof(MeshTriangle) == sizeof(uint16_t) * 3);
-  
-  par_shapes_mesh* parCube = par_shapes_create_cube();
-  
-  MyMesh mesh;
-  mesh.vertices.resize(parCube->npoints);
-  mesh.triangles.resize(parCube->ntriangles);
-  
-  std::memcpy(mesh.vertices.data(), parCube->points, parCube->npoints * sizeof(MeshVertex));
-  for (size_t i = 0; i < parCube->ntriangles; ++i)
-  {
-    mesh.triangles[i].index[0] = parCube->triangles[i * 3 + 0];
-    mesh.triangles[i].index[1] = parCube->triangles[i * 3 + 1];
-    mesh.triangles[i].index[2] = parCube->triangles[i * 3 + 2];
-  }
-  
-  par_shapes_free_mesh(parCube);
-}
-
 //TODO: these are duplicated from main.cpp, move to a common header
 constexpr float side = 3.8f;   // lato
 constexpr float height = 3.1f;
 constexpr float studHeight = 1.4f;
 constexpr float studDiameter = 2.5f;
+
+gfx::MyMesh gfx::Renderer::generateCube()
+{
+  static_assert(sizeof(gfx::MeshVertex) == sizeof(float) * 3);
+  static_assert(sizeof(gfx::MeshTriangle) == sizeof(uint16_t) * 3);
+  
+  par_shapes_mesh* shape = par_shapes_create_cube();
+  par_shapes_translate(shape, -0.5f, -0.5f, -0.5f);
+  par_shapes_scale(shape, side, height, side);
+  
+  gfx::MyMesh mesh;
+  mesh.vertices.resize(shape->npoints);
+  mesh.triangles.resize(shape->ntriangles);
+  
+  std::memcpy(mesh.vertices.data(), shape->points, shape->npoints * sizeof(gfx::MeshVertex));
+  for (size_t i = 0; i < shape->ntriangles; ++i)
+  {
+    mesh.triangles[i].index[0] = shape->triangles[i * 3 + 0];
+    mesh.triangles[i].index[1] = shape->triangles[i * 3 + 1];
+    mesh.triangles[i].index[2] = shape->triangles[i * 3 + 2];
+  }
+  
+  par_shapes_free_mesh(shape);
+
+  return mesh;
+}
+
+gfx::MyMesh gfx::Renderer::generateCylinder()
+{
+  par_shapes_mesh* shape = par_shapes_create_cylinder(32, 1);
+  par_shapes_rotate(shape, -PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
+  par_shapes_scale(shape, side / 2.0f, height, side / 2.0f);
+  par_shapes_translate(shape, 0, - height * 0.5f, 0);
+  
+  par_shapes_mesh* top = par_shapes_create_disk(side / 2.0f, 32, std::array<float, 3>{ 0, height / 2, 0 }.data(), std::array<float, 3>{ 0, 1, 0 }.data());
+  par_shapes_mesh* bottom = par_shapes_create_disk(side / 2.0f, 32, std::array<float, 3>{ 0, -height / 2, 0 }.data(), std::array<float, 3>{ 0, -1, 0 }.data());
+
+  par_shapes_merge(shape, top);
+  par_shapes_merge(shape, bottom);
+
+  gfx::MyMesh mesh;
+  mesh.vertices.resize(shape->npoints);
+  mesh.triangles.resize(shape->ntriangles);
+
+  std::memcpy(mesh.vertices.data(), shape->points, shape->npoints * sizeof(gfx::MeshVertex));
+  for (size_t i = 0; i < shape->ntriangles; ++i)
+  {
+    mesh.triangles[i].index[0] = shape->triangles[i * 3 + 0];
+    mesh.triangles[i].index[1] = shape->triangles[i * 3 + 1];
+    mesh.triangles[i].index[2] = shape->triangles[i * 3 + 2];
+  }
+
+  par_shapes_free_mesh(shape);
+
+  return mesh;
+
+}
 
 gfx::Renderer::Renderer(Context* context) : _context(context), _topDown(context) { }
 
@@ -354,23 +372,25 @@ void gfx::Renderer::init()
 
   materials.flatMaterial.shader = shaders.flatShading.shader;
   
-  _cubeBatch.setup(raylib::MeshUnmanaged::Cube(side, height, side), &shaders.flatShading);
+  //_cubeBatch.setup(raylib::MeshUnmanaged::Cube(side, height, side), &shaders.flatShading);
+  _cubeBatch.setup(generateCube(), &shaders.flatShading);
+
+  _cylinderBatch.setup(generateCylinder(), &shaders.flatShading);
   //_cylinderBatch.setup(raylib::MeshUnmanaged::Cylinder(side / 2, height, 32), &shaders.flatShading);
-  _cylinderBatch.setup(GenMeshHemiCylinder(side / 2, height, 32), &shaders.flatShading);
+  //_cylinderBatch.setup(GenMeshHemiCylinder(side / 2, height, 32), &shaders.flatShading);
+
   _studBatch.setup(raylib::MeshUnmanaged::Cylinder(studDiameter / 2.0f, studHeight, 32), &shaders.flatShading);
 
   /* we need to shift all vertices of cylinder because it's zero aligned */
-  for (int i = 0; i < _cylinderBatch.mesh().vertexCount; ++i)
+  /*for (int i = 0; i < _cylinderBatch.mesh().vertexCount; ++i)
     _cylinderBatch.mesh().vertices[i * 3 + 1] -= height * 0.5f;
   rlEnableVertexArray(_cylinderBatch.mesh().vaoId);
   rlUpdateVertexBuffer(*_cylinderBatch.mesh().vboId, _cylinderBatch.mesh().vertices, _cylinderBatch.mesh().vertexCount * 3 * sizeof(float), 0);
-  rlDisableVertexArray();
+  rlDisableVertexArray();*/
 
   _shapeBatches.resize(2);
   _shapeBatches[0] = &_cubeBatch;
   _shapeBatches[1] = &_cylinderBatch;
-  
-  generateCube();
 }
 
 void gfx::Renderer::deinit()
@@ -460,7 +480,10 @@ void gfx::Renderer::renderLayerGrid3d(layer_index_t index, size2d_t size)
 }
 
 void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::Matrix& layerTransform)
-{
+{ 
+  if (!_context->prefs.renderer.drawStuds)
+    return;
+  
   if (piece->studs() == nb::StudMode::None)
     return;
   else if (piece->studs() == nb::StudMode::Centered)
@@ -470,7 +493,8 @@ void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::M
     raylib::Vector3 center = raylib::Vector3::Zero();
     center = center.Transform(_studBatch.instanceData().back().matrix);
 
-    DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece->color()->edge(), MatrixIdentity(), _camera);
+    if (_context->prefs.renderer.drawEdges)
+      DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece->color()->edge(), MatrixIdentity(), _camera);
   }
   else
   {
@@ -482,7 +506,8 @@ void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::M
         raylib::Vector3 center = raylib::Vector3::Zero();
         center = center.Transform(_studBatch.instanceData().back().matrix);
 
-        DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece->color()->edge(), MatrixIdentity(), _camera);
+        if (_context->prefs.renderer.drawEdges)
+          DrawCylinderWireframe(center, studDiameter / 2.0f, studHeight, 32, piece->color()->edge(), MatrixIdentity(), _camera);
       }
   }
 }
@@ -509,12 +534,15 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
       raylib::Vector3 center = vec3(0.0f, -height / 2.0f, 0.0f);
       center = center.Transform(finalTransform);
 
-      DrawCylinderWireframe(center, side / 2, height, 32, piece.color()->edge(), MatrixIdentity(), _camera);
+      if (_context->prefs.renderer.drawEdges)
+        DrawCylinderWireframe(center, side / 2, height, 32, piece.color()->edge(), MatrixIdentity(), _camera);
     }
     else
     {
       _cubeBatch.instanceData().push_back({ finalTransform, piece.color() });
-      DrawCubeEdgesFast(side, height, side, finalTransform, piece.color()->edge());
+
+      if (_context->prefs.renderer.drawEdges)
+        DrawCubeEdgesFast(side, height, side, finalTransform, piece.color()->edge());
     }
 
   }
@@ -575,7 +603,7 @@ void gfx::Batch::draw(const Material& material)
     rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_NORMAL], MatrixTranspose(MatrixInvert(matModel)));
 
 
-  update(_mesh);
+  update();
   
   // Try binding vertex array objects (VAO)
   // or use VBOs if not possible
@@ -587,11 +615,17 @@ void gfx::Batch::draw(const Material& material)
   // Send combined model-view-projection matrix to shader
   rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_MVP], matModelViewProjection);
 
-  // Draw mesh instanced
-  if (_mesh.indices != NULL)
-    rlDrawVertexArrayElementsInstanced(0, _mesh.triangleCount * 3, 0, _instanceData.size());
+  if (_oldMesh.vertices)
+  {
+    // Draw mesh instanced
+    if (_oldMesh.indices != NULL)
+      rlDrawVertexArrayElementsInstanced(0, _oldMesh.triangleCount * 3, 0, _instanceData.size());
+    else
+      rlDrawVertexArrayInstanced(0, _oldMesh.vertexCount, _instanceData.size());
+  }
   else
-    rlDrawVertexArrayInstanced(0, _mesh.vertexCount, _instanceData.size());
+    rlDrawVertexArrayElementsInstanced(0, _mesh.triangles.size() * 3, 0, _instanceData.size());
+
 
   // Unbind all bound texture maps
   for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
@@ -621,11 +655,60 @@ void gfx::Batch::draw(const Material& material)
   RL_FREE(instanceTransforms);
 }
 
+void gfx::Batch::setup(MyMesh&& mesh, FlatShader* shader)
+{
+  _mesh = std::move(mesh);
+  
+  /* generate VAO for mesh */
+  _vaoID = rlLoadVertexArray();
+  /* enable it for future buffer binding */
+
+  /* now we need to generate all buffers: vertices, indices, transforms, colors */
+  glGenBuffers(4, &_vboIDs[0]);
+
+  _vboVertices = _vboIDs[0];
+  _vboIndices = _vboIDs[1];
+  _vboTransforms = _vboIDs[2];
+  _vboColorShades = _vboIDs[3];
+
+  GLuint positionLocation = shader->shader.locs[SHADER_LOC_VERTEX_POSITION];
+
+  rlEnableVertexArray(_vaoID);
+
+  rlEnableVertexBuffer(_vboVertices);
+  glBufferData(GL_ARRAY_BUFFER, _mesh.vertices.size() * sizeof(MeshVertex), _mesh.vertices.data(), GL_STATIC_DRAW);
+
+  rlEnableVertexAttribute(positionLocation);
+  rlSetVertexAttribute(positionLocation, 3, RL_FLOAT, 0, sizeof(MeshVertex), offsetof(MeshVertex, position));
+
+  rlEnableVertexBufferElement(_vboIndices);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, _mesh.triangles.size() * sizeof(MeshTriangle), _mesh.triangles.data(), GL_STATIC_DRAW);
+
+  rlEnableVertexBuffer(_vboTransforms);
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    auto baseLocation = shader->locationInstanceTransform;
+    rlEnableVertexAttribute(baseLocation + i);
+    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
+    rlSetVertexAttributeDivisor(baseLocation + i, 1);
+  }
+
+  rlEnableVertexBuffer(_vboColorShades);
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    auto baseLocation = shader->locationColorShade;
+    rlEnableVertexAttribute(baseLocation + i);
+    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
+    rlSetVertexAttributeDivisor(baseLocation + i, 1);
+  }
+
+  rlDisableVertexArray();
+}
 
 void gfx::Batch::setup(raylib::MeshUnmanaged&& mesh, FlatShader* shader)
 {
   //glGenVertexArrays(1, &_vaoID);
-  _mesh = std::move(mesh);
+  _oldMesh = std::move(mesh);
   _vaoID = mesh.vaoId;
   glBindVertexArray(_vaoID);
 
@@ -661,11 +744,14 @@ void gfx::Batch::setup(raylib::MeshUnmanaged&& mesh, FlatShader* shader)
 
 void gfx::Batch::release()
 {
-  _mesh.Unload();
-  glDeleteBuffers(3, &_vboIDs[0]);
+  if (_oldMesh.vertices)
+  {
+    _oldMesh.Unload();
+  }
+  glDeleteBuffers(4, &_vboIDs[0]);
 }
 
-void gfx::Batch::update(const Mesh& mesh)
+void gfx::Batch::update()
 {
   const size_t count = _instanceData.size();
   

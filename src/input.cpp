@@ -141,6 +141,10 @@ void InputHandler::keyDown(int key)
   {
     _context->model->addLayerOnTop();
   }
+  else if (key == KEY_C)
+  {
+    _context->model->clear();
+  }
 
 
   //TODO: check validity

@@ -333,18 +333,24 @@ int main(int arg, char* argv[])
       DrawText(coordStr.c_str(), 10, GetScreenHeight() - 30, 14, DARKGRAY);
     }
 
-    rlImGuiBegin();
+    if (context.prefs.ui.drawUI)
+    {
+      rlImGuiBegin();
 
-    context.ui->draw();
+      context.ui->draw();
 
-    ImGuiIO& io = ImGui::GetIO();
-    bool blockMouse = io.WantCaptureMouse;
-    bool blockKeyboard = io.WantCaptureKeyboard;
+      ImGuiIO& io = ImGui::GetIO();
+      bool blockMouse = io.WantCaptureMouse;
+      bool blockKeyboard = io.WantCaptureKeyboard;
 
-    rlImGuiEnd();
+      rlImGuiEnd();
 
-    if (!blockMouse && !blockKeyboard)
+      if (!blockMouse && !blockKeyboard)
+        input->handle(model.get());
+    }
+    else
       input->handle(model.get());
+
 
     UpdateCamera(&renderer->camera(), CAMERA_ORBITAL);
 
