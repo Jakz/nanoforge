@@ -99,6 +99,7 @@ namespace gfx
 
     Batch _cubeBatch;
     Batch _cylinderBatch;
+    Batch _halfCylinderBatch;
     Batch _studBatch;
 
     std::vector<Batch*> _shapeBatches;

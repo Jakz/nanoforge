@@ -251,13 +251,30 @@ void UI::drawViewOptionsWindow()
   ImGui::End();
 }
 
+
+void UI::drawPieceTypeWindow()
+{
+  using namespace nb;
+  ImGui::Begin("Piece Type", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+  const PieceType type = _context->brush->type();
+
+  if (ImGui::RadioButton("Square", type == PieceType::Square))
+    _context->brush->setType(PieceType::Square);
+  else if (ImGui::RadioButton("Round", type == PieceType::Round))
+    _context->brush->setType(PieceType::Round);
+
+  ImGui::End();
+}
+
 void UI::draw()
 {
   drawPaletteWindow();
-  drawViewOptionsWindow();
-  
+  drawPieceTypeWindow();
   if (_studWindowVisible)
     drawStudModeWindow();
 
+  drawViewOptionsWindow();
+  
   drawToolbar();
 }

@@ -73,6 +73,7 @@ namespace nb
 
     void dye(const PieceColor* color) { _color = color; }
     void setStuds(StudMode studs) { _studs = studs; }
+    void setType(PieceType type) { _type = type; }
 
     Piece derive(size2d_t size) const
     {

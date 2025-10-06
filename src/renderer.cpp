@@ -420,6 +420,16 @@ void gfx::Renderer::init()
 
   auto fsi = glCreateShader(GL_FRAGMENT_SHADER);
   glShaderSource(fsi, 1, (const char**)&fragShader, nullptr);
+  glCompileShader(fsi);
+  
+  glGetShaderiv(vsi, GL_COMPILE_STATUS, &shaderOk);
+  if (!shaderOk)
+  {
+    //fprintf(stderr, "Failed to compile shader %s:\n", filename);
+    //showErrorLog(ident, glGetShaderiv, glGetShaderInfoLog);
+    //glDeleteShader(ident);
+    assert(false);
+  }
 
   GLuint program = glCreateProgram();
   glAttachShader(program, vsi);
@@ -439,7 +449,7 @@ void gfx::Renderer::init()
   
   //_cubeBatch.setup(raylib::MeshUnmanaged::Cube(side, height, side), &shaders.flatShading);
   _cubeBatch.setup(generateCube(vec3(side, height, side)), &shaders.flatShading);
-
+  _halfCylinderBatch.setup(generateHalfCylinder(), &shaders.flatShading);
   _cylinderBatch.setup(generateCylinder(side / 2, height), &shaders.flatShading);
   //_cylinderBatch.setup(raylib::MeshUnmanaged::Cylinder(side / 2, height, 32), &shaders.flatShading);
   //_cylinderBatch.setup(GenMeshHemiCylinder(side / 2, height, 32), &shaders.flatShading);
@@ -594,13 +604,20 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
     
     if (piece.type() == nb::PieceType::Round)
     {
-      _cylinderBatch.instanceData().push_back({ finalTransform, piece.color() });
-
-      raylib::Vector3 center = vec3(0.0f, -height / 2.0f, 0.0f);
-      center = center.Transform(finalTransform);
-
-      if (_context->prefs.renderer.drawEdges)
-        DrawCylinderWireframe(center, side / 2, height, 32, piece.color()->edge(), MatrixIdentity(), _camera);
+      if (piece.width() == 1 && piece.height() == 1)
+      {
+        _cylinderBatch.instanceData().push_back({ finalTransform, piece.color() });
+        
+        raylib::Vector3 center = vec3(0.0f, -height / 2.0f, 0.0f);
+        center = center.Transform(finalTransform);
+        
+        if (_context->prefs.renderer.drawEdges)
+          DrawCylinderWireframe(center, side / 2, height, 32, piece.color()->edge(), MatrixIdentity(), _camera);
+      }
+      else if (piece.width() == 1 || piece.height() == 1)
+      {
+        
+      }
     }
     else
     {
