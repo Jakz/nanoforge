@@ -25,6 +25,7 @@ public:
   
   void drawPaletteWindow();
   void drawStudModeWindow();
+  void drawViewOptionsWindow();
   void drawToolbar();
 
   void draw();

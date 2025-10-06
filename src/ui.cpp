@@ -227,9 +227,34 @@ void UI::drawToolbar()
   ImGui::PopStyleVar();
 }
 
+void UI::drawViewOptionsWindow()
+{
+  ImGui::Begin("View Options", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+  bool changed = false;
+
+  // Draw Studs checkbox
+  if (ImGui::Checkbox("Draw Studs", &_context->prefs.renderer.drawStuds))
+    changed = true;
+
+  // Draw Edges checkbox
+  if (ImGui::Checkbox("Draw Edges", &_context->prefs.renderer.drawEdges))
+    changed = true;
+
+  // (Optional) handle changes, e.g. mark scene dirty or save prefs
+  if (changed)
+  {
+    // Example: _context->renderer->markDirty();
+    // or _context->prefs.save();
+  }
+
+  ImGui::End();
+}
+
 void UI::draw()
 {
   drawPaletteWindow();
+  drawViewOptionsWindow();
   
   if (_studWindowVisible)
     drawStudModeWindow();

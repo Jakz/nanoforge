@@ -322,14 +322,14 @@ void gfx::MyMesh::generateAndFree(par_shapes_mesh* shape)
   par_shapes_free_mesh(shape);
 }
 
-gfx::MyMesh gfx::Renderer::generateCube()
+gfx::MyMesh gfx::Renderer::generateCube(const vec3& size)
 {
   static_assert(sizeof(gfx::MeshVertex) == sizeof(float) * 3);
   static_assert(sizeof(gfx::MeshTriangle) == sizeof(uint16_t) * 3);
   
   par_shapes_mesh* shape = par_shapes_create_cube();
   par_shapes_translate(shape, -0.5f, -0.5f, -0.5f);
-  par_shapes_scale(shape, side, height, side);
+  par_shapes_scale(shape, size.x, size.y, size.z);
 
   par_shapes_unweld(shape, true);
   par_shapes_compute_normals(shape);
@@ -341,15 +341,15 @@ gfx::MyMesh gfx::Renderer::generateCube()
   return mesh;
 }
 
-gfx::MyMesh gfx::Renderer::generateCylinder(bool stud)
+gfx::MyMesh gfx::Renderer::generateCylinder(float radius, float height)
 {
   par_shapes_mesh* shape = par_shapes_create_cylinder(slices, 1);
   par_shapes_rotate(shape, -PI / 2.0f, std::array<float, 3>{ 1, 0, 0 }.data());
-  par_shapes_scale(shape, side / 2.0f, height, side / 2.0f);
+  par_shapes_scale(shape, radius, height, radius);
   par_shapes_translate(shape, 0, - height * 0.5f, 0);
   
-  par_shapes_mesh* top = par_shapes_create_disk(side / 2.0f, slices, std::array<float, 3>{ 0, height / 2, 0 }.data(), std::array<float, 3>{ 0, 1, 0 }.data());
-  par_shapes_mesh* bottom = par_shapes_create_disk(side / 2.0f, slices, std::array<float, 3>{ 0, -height / 2, 0 }.data(), std::array<float, 3>{ 0, -1, 0 }.data());
+  par_shapes_mesh* top = par_shapes_create_disk(radius, slices, std::array<float, 3>{ 0, height / 2, 0 }.data(), std::array<float, 3>{ 0, 1, 0 }.data());
+  par_shapes_mesh* bottom = par_shapes_create_disk(radius, slices, std::array<float, 3>{ 0, -height / 2, 0 }.data(), std::array<float, 3>{ 0, -1, 0 }.data());
 
   par_shapes_merge(shape, top);
   par_shapes_merge(shape, bottom);
@@ -426,6 +426,9 @@ void gfx::Renderer::init()
   glAttachShader(program, fsi);
   glLinkProgram(program);
 
+  glDeleteShader(vsi);
+  glDeleteShader(fsi);
+
   shaders.flatShading.shader.id = program;
   
   //shaders.flatShading.shader = raylib::Shader::LoadFromMemory(vertShader, fragShader);
@@ -435,13 +438,13 @@ void gfx::Renderer::init()
   shaders.flatShading.locationColorShade = shaders.flatShading->GetLocationAttrib("colorShades");
   
   //_cubeBatch.setup(raylib::MeshUnmanaged::Cube(side, height, side), &shaders.flatShading);
-  _cubeBatch.setup(generateCube(), &shaders.flatShading);
+  _cubeBatch.setup(generateCube(vec3(side, height, side)), &shaders.flatShading);
 
-  _cylinderBatch.setup(generateCylinder(false), &shaders.flatShading);
+  _cylinderBatch.setup(generateCylinder(side / 2, height), &shaders.flatShading);
   //_cylinderBatch.setup(raylib::MeshUnmanaged::Cylinder(side / 2, height, 32), &shaders.flatShading);
   //_cylinderBatch.setup(GenMeshHemiCylinder(side / 2, height, 32), &shaders.flatShading);
 
-  _studBatch.setup(raylib::MeshUnmanaged::Cylinder(studDiameter / 2.0f, studHeight, 32), &shaders.flatShading);
+  _studBatch.setup(generateCylinder(studDiameter / 2.0f, studHeight), &shaders.flatShading);
 
   /* we need to shift all vertices of cylinder because it's zero aligned */
   /*for (int i = 0; i < _cylinderBatch.mesh().vertexCount; ++i)
@@ -457,7 +460,7 @@ void gfx::Renderer::init()
 
 void gfx::Renderer::deinit()
 {
-  UnloadShader(shaders.flatShading.shader);
+  glDeleteProgram(shaders.flatShading.shader.id);
 }
 
 void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize)
@@ -550,9 +553,9 @@ void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::M
     return;
   else if (piece->studs() == nb::StudMode::Centered)
   {
-    _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + piece->width() * 0.5f) * side, height, (piece->y() + piece->height() * 0.5f) * side), piece->color()});
+    _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + piece->width() * 0.5f) * side, height + studHeight * 0.5f, (piece->y() + piece->height() * 0.5f) * side), piece->color()});
 
-    raylib::Vector3 center = raylib::Vector3::Zero();
+    raylib::Vector3 center = raylib::Vector3(0, -studHeight * 0.5f, 0);
     center = center.Transform(_studBatch.instanceData().back().matrix);
 
     if (_context->prefs.renderer.drawEdges)
@@ -563,9 +566,9 @@ void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::M
     for (int y = 0; y < piece->height(); ++y)
       for (int x = 0; x < piece->width(); ++x)
       {
-        _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + x + 0.5f) * side, height, (piece->y() + y + 0.5f) * side), piece->color() });
+        _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + x + 0.5f) * side, height + studHeight * 0.5f, (piece->y() + y + 0.5f) * side), piece->color() });
 
-        raylib::Vector3 center = raylib::Vector3::Zero();
+        raylib::Vector3 center = raylib::Vector3(0, - studHeight * 0.5f, 0);
         center = center.Transform(_studBatch.instanceData().back().matrix);
 
         if (_context->prefs.renderer.drawEdges)
@@ -634,6 +637,7 @@ void gfx::Renderer::renderModel(const nb::Model* model)
 gfx::Batch::~Batch()
 {
   //_mesh.Unload();
+  release();
 }
 
 void gfx::Batch::draw(FlatShader* shader)
@@ -806,7 +810,11 @@ void gfx::Batch::release()
   {
     _oldMesh.Unload();
   }
-  glDeleteBuffers(5, &_vboIDs[0]);
+  else
+  {
+    glDeleteBuffers(5, &_vboIDs[0]);
+    glDeleteVertexArrays(1, &_vaoID);
+  }
 }
 
 void gfx::Batch::update()

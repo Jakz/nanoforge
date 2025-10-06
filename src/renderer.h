@@ -108,8 +108,8 @@ namespace gfx
       FlatShader flatShading;
     } shaders;
 
-    MyMesh generateCube();
-    MyMesh generateCylinder(bool isStud);
+    MyMesh generateCube(const vec3& size);
+    MyMesh generateCylinder(float radius, float height);
     MyMesh generateHalfCylinder();
 
   public:
