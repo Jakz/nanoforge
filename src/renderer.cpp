@@ -630,7 +630,7 @@ void gfx::Renderer::renderModel(const nb::Model* model)
   for (const auto& layer : model->layers())
     renderLayer(layer.get());
 
-  renderLayerGrid3d(0, size2d_t(MOCK_LAYER_SIZE, MOCK_LAYER_SIZE));
+  renderLayerGrid3d(0, model->size());
 }
 
 

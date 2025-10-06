@@ -146,6 +146,7 @@ void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
 {
   fkyaml::node root = { { "pieces", fkyaml::node::sequence() }, { "info", fkyaml::node::mapping() } };
   root["info"]["name"] = model->info().name;
+  root["info"]["size"] = fkyaml::node::sequence({ model->size().width, model->size().height });
   
   auto& pieces = root["pieces"].as_seq();
 
@@ -203,8 +204,6 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
       maxZ = std::max(maxZ, z);
     }
     
-    LOG("Loading model %s... (%d pieces, %d layers)", node["info"]["name"].as_str().c_str(), node["pieces"].as_seq().size(), maxZ);
-
     model.prepareLayers(maxZ + 1);
     model.info().name = node["info"]["name"].as_str();
 
@@ -252,6 +251,20 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
       model.addPiece(z, nb::Piece(coord2d_t(x, y), color, nb::PieceOrientation::North, type, size, studs));
     }
 
+    auto bounds = model.bounds();
+    LOG("Loading model %s... (%d pieces, %d layers, %dx%d size)", node["info"]["name"].as_str().c_str(), node["pieces"].as_seq().size(), maxZ, model.bounds().size().width, model.bounds().size().height);
+
+    if (node["info"]["size"].is_sequence())
+    {
+      model.info().size.width = node["info"]["size"][0].as_int();
+      model.info().size.height = node["info"]["size"][1].as_int();
+    }
+    else
+    {
+      model.setSizeAccordingToBounds();
+    }
+
+
     return model;
   }
 
@@ -279,7 +292,7 @@ int main(int arg, char* argv[])
 
   context.brush.reset(new nb::Piece(coord2d_t(0, 0), context.data->colors.lime, nb::PieceOrientation::North, nb::PieceType::Square, size2d_t(1, 1)));
 
-  renderer->camera().target = { gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f,  0.0f,  gfx::Renderer::MOCK_LAYER_SIZE * side * 0.5f };
+  renderer->camera().target = { model->size().width * side * 0.5f,  0.0f,  model->size().height * side * 0.5f };
   renderer->camera().position = { renderer->camera().target.x * 4.0f, renderer->camera().target.x * 2.0f, renderer->camera().target.y * 4.0f };
   renderer->camera().up = { 0.0f,  1.0f,  0.0f };
   renderer->camera().fovy = 45.0f;
@@ -321,8 +334,8 @@ int main(int arg, char* argv[])
       auto idx = it.index();
       if (idx >= 0)
       {
-        float y = (gfx::Renderer::MOCK_LAYER_SIZE * Data::Constants::LAYER2D_CELL_SIZE.height) * it.relative() + (Data::Constants::LAYER2D_SPACING * it.relative());
-        renderer->renderLayerGrid2d(context.prefs.gridTopPosition() + vec2(0, y), model->layer(idx), size2d_t(gfx::Renderer::MOCK_LAYER_SIZE, gfx::Renderer::MOCK_LAYER_SIZE), Data::Constants::LAYER2D_CELL_SIZE);
+        float y = (model->size().height * Data::Constants::LAYER2D_CELL_SIZE.height) * it.relative() + (Data::Constants::LAYER2D_SPACING * it.relative());
+        renderer->renderLayerGrid2d(context.prefs.gridTopPosition() + vec2(0, y), model->layer(idx), model->size(), Data::Constants::LAYER2D_CELL_SIZE);
       }
     }
 

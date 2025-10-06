@@ -24,6 +24,8 @@ namespace nb
     void add(const Piece& piece) { _pieces.push_back(piece); }
     Piece* piece(const coord2d_t& coord) const;
 
+    bounds2d_t bounds() const;
+
     layer_index_t index() const { return _index; }
     const auto& pieces() const { return _pieces; }
     auto& pieces() { return _pieces; }
@@ -36,6 +38,7 @@ namespace nb
   struct ModelInfo
   {
     std::string name;
+    size2d_t size;
   };
 
   class Model
@@ -57,11 +60,18 @@ namespace nb
     void addLayerAtBottom() { addLayer(0); }
 
     void clear() { _layers.clear(); }
+
+    bounds2d_t bounds() const;
+    size2d_t size() const { return _info.size; }
     
     Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
     const Layer* layer(layer_index_t index) const { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
 
     void shift(Direction direction);
+    void shift(const coord2d_t& delta);
+
+    void shrinkToFit();
+    void setSizeAccordingToBounds();
     
     const auto& layers() const { return _layers; }
     

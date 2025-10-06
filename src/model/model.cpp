@@ -13,6 +13,32 @@ Piece* nb::Layer::piece(const coord2d_t& coord) const
   return nullptr;
 }
 
+bounds2d_t nb::Layer::bounds() const
+{
+  /* iterate all pieces and update bounds */
+  bounds2d_t b;
+
+  for (const auto& p : _pieces)
+  {
+    b += p.coord();
+    b += coord2d_t(p.x() + p.width() - 1, p.y() + p.height() - 1);
+  }
+  
+  return b;
+}
+
+
+bounds2d_t nb::Model::bounds() const
+{
+  bounds2d_t b;
+
+  for (const auto& layer : _layers)
+     b += layer->bounds();
+ 
+  return b;
+}
+
+
 void nb::Model::linkLayers(Layer* prev, Layer* next)
 {
   if (prev) prev->_next = next;
@@ -89,9 +115,17 @@ void nb::Model::remove(const Piece* p)
   }
 }
 
+void nb::Model::shift(const coord2d_t& delta)
+{
+  for (const auto& layer : _layers)
+    for (auto& piece : layer->pieces())
+      piece.moveBy(delta);
+}
+
 void nb::Model::shift(Direction direction)
 {
   for (const auto& layer : _layers)
+  {
     for (auto& piece : layer->pieces())
     {
       switch (direction)
@@ -102,4 +136,17 @@ void nb::Model::shift(Direction direction)
         case Direction::West: piece.moveBy(-1, 0); break;
       }
     }
+  }
+}
+
+void nb::Model::shrinkToFit()
+{
+  bounds2d_t b = this->bounds();
+  this->shift(- b.min());
+}
+
+void nb::Model::setSizeAccordingToBounds()
+{
+  shrinkToFit();
+  _info.size = this->bounds().size();
 }

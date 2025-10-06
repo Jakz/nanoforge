@@ -42,8 +42,8 @@ void InputHandler::handle(nb::Model* model)
   bool any = false;
   for (layer_index_t i = 0; i < model->layerCount(); ++i)
   {
-    float y = (gfx::Renderer::MOCK_LAYER_SIZE * Data::Constants::LAYER2D_CELL_SIZE.height) * i + (Data::Constants::LAYER2D_SPACING * i);
-    rect bounds = rect(_context->prefs.gridTopPosition().x, _context->prefs.gridTopPosition().y + y, gfx::Renderer::MOCK_LAYER_SIZE * Data::Constants::LAYER2D_CELL_SIZE.width, gfx::Renderer::MOCK_LAYER_SIZE * Data::Constants::LAYER2D_CELL_SIZE.height);
+    float y = (model->size().height * Data::Constants::LAYER2D_CELL_SIZE.height) * i + (Data::Constants::LAYER2D_SPACING * i);
+    rect bounds = rect(_context->prefs.gridTopPosition().x, _context->prefs.gridTopPosition().y + y, model->size().width * Data::Constants::LAYER2D_CELL_SIZE.width, model->size().height * Data::Constants::LAYER2D_CELL_SIZE.height);
 
     /* if mouse is inside 2d layer grid */
     if (bounds.CheckCollision(position))
