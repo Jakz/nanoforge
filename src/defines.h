@@ -30,6 +30,7 @@ namespace nb
 struct FlatShader
 {
   raylib::ShaderUnmanaged shader;
+  unsigned int locationMVP;
   unsigned int locationInstanceTransform;
   unsigned int locationColorShade;
   

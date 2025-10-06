@@ -63,7 +63,7 @@ namespace gfx
 
     void setup(raylib::MeshUnmanaged&& mesh, FlatShader* shader);
     void release();
-    void draw(const Material& material);
+    void draw(FlatShader* shader);
 
     auto& mesh() { return _oldMesh; }
     auto& instanceData() { return _instanceData; }
@@ -107,11 +107,6 @@ namespace gfx
     {
       FlatShader flatShading;
     } shaders;
-
-    struct Materials
-    {
-      raylib::Material flatMaterial;
-    } materials;
 
     MyMesh generateCube();
     MyMesh generateCylinder(bool isStud);

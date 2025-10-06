@@ -37,7 +37,7 @@ struct Preferences
   struct
   {
     bool drawEdges = true;
-    bool drawStuds = false;
+    bool drawStuds = true;
 
   } renderer;
   

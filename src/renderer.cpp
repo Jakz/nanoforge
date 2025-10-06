@@ -3,6 +3,11 @@
 #include "context.h"
 #include "input.h"
 
+#include "glad/glad.h"
+
+#include <cassert>
+
+
 nb::layer_iterator_t gfx::TopDownGrid::begin() const
 {
   layer_index_t topMostLayer = std::min(
@@ -38,10 +43,8 @@ flat out mat4 vColorShades;
 
 void main()
 {
-  mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
-  vNormalWorld = vertexNormal; //normalize(mat3(instanceTransform) * vertexNormal);
+  vNormalWorld = vertexNormal;
   vColorShades = colorShades;
-
   gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
 }
 )";
@@ -58,21 +61,17 @@ layout(location = 0) out vec4 fragColor;
 
 void main()
 {
-  vec3 normal = normalize(vNormalWorld);
-  float isUp = step(yThreshold, normal.y);   // 1 se Y>=soglia, altrimenti 0
-  if (isUp > 0.5)
-  {
+  if (vNormalWorld.y > yThreshold)
     fragColor = vColorShades[0];
-  }
+  else if (vNormalWorld.x > vNormalWorld.z)
+    fragColor = vColorShades[1];
   else
-  {      
-    fragColor = (normal.x > 0.0) ? vColorShades[2] : vColorShades[1];
-  }
+    fragColor = vColorShades[2];
 
-  fragColor = vec4(vNormalWorld, 1.0); //vColorShades[0];
+  //vec3 nrgb = vNormalWorld * 0.5 + 0.5;
+  //fragColor = vec4(nrgb, 1.0f);
 }
 )";
-
 
 // Disegna i 12 bordi del cubo dato centro e dimensioni (in local space) + trasform finale
 static inline void DrawCubeEdgesFast(float w, float h, float d, const Matrix& world, Color col)
@@ -404,13 +403,36 @@ gfx::MyMesh gfx::Renderer::generateHalfCylinder()
 gfx::Renderer::Renderer(Context* context) : _context(context), _topDown(context) { }
 
 void gfx::Renderer::init()
-{
-  shaders.flatShading.shader = raylib::Shader::LoadFromMemory(vertShader, fragShader);
-  shaders.flatShading.shader.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading->GetLocation("mvp");
+{  
+  auto vsi = glCreateShader(GL_VERTEX_SHADER);
+  glShaderSource(vsi, 1, (const char**)&vertShader, nullptr);
+  glCompileShader(vsi);
+
+  GLint shaderOk;
+  glGetShaderiv(vsi, GL_COMPILE_STATUS, &shaderOk);
+  if (!shaderOk)
+  {
+    //fprintf(stderr, "Failed to compile shader %s:\n", filename);
+    //showErrorLog(ident, glGetShaderiv, glGetShaderInfoLog);
+    //glDeleteShader(ident);
+    assert(false);
+  }
+
+  auto fsi = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(fsi, 1, (const char**)&fragShader, nullptr);
+
+  GLuint program = glCreateProgram();
+  glAttachShader(program, vsi);
+  glAttachShader(program, fsi);
+  glLinkProgram(program);
+
+  shaders.flatShading.shader.id = program;
+  
+  //shaders.flatShading.shader = raylib::Shader::LoadFromMemory(vertShader, fragShader);
+  //shaders.flatShading.shader.locs[SHADER_LOC_MATRIX_MVP] = shaders.flatShading->GetLocation("mvp");
+  shaders.flatShading.locationMVP = shaders.flatShading->GetLocation("mvp");
   shaders.flatShading.locationInstanceTransform = shaders.flatShading->GetLocationAttrib("instanceTransform");
   shaders.flatShading.locationColorShade = shaders.flatShading->GetLocationAttrib("colorShades");
-
-  materials.flatMaterial.shader = shaders.flatShading.shader;
   
   //_cubeBatch.setup(raylib::MeshUnmanaged::Cube(side, height, side), &shaders.flatShading);
   _cubeBatch.setup(generateCube(), &shaders.flatShading);
@@ -435,7 +457,7 @@ void gfx::Renderer::init()
 
 void gfx::Renderer::deinit()
 {
-  materials.flatMaterial.Unload();
+  UnloadShader(shaders.flatShading.shader);
 }
 
 void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_t layerSize, size2d_t cellSize)
@@ -588,12 +610,12 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
   }
 
   for (auto* batch : _shapeBatches)
-    batch->draw(materials.flatMaterial);
+    batch->draw(&shaders.flatShading);
 }
 
 void gfx::Renderer::renderStuds()
 {
-  _studBatch.draw(materials.flatMaterial);
+  _studBatch.draw(&shaders.flatShading);
   _studBatch.instanceData().clear();
 }
 
@@ -608,14 +630,13 @@ void gfx::Renderer::renderModel(const nb::Model* model)
   renderLayerGrid3d(0, size2d_t(MOCK_LAYER_SIZE, MOCK_LAYER_SIZE));
 }
 
-#include "glad/glad.h"
 
 gfx::Batch::~Batch()
 {
   //_mesh.Unload();
 }
 
-void gfx::Batch::draw(const Material& material)
+void gfx::Batch::draw(FlatShader* shader)
 {
   if (_instanceData.empty())
     return;
@@ -626,7 +647,7 @@ void gfx::Batch::draw(const Material& material)
   float16* instanceTransforms = NULL;
 
   // Bind shader program
-  rlEnableShader(material.shader.id);
+  rlEnableShader(shader->shader.id);
 
   Matrix matModel = MatrixIdentity();
   Matrix matView = rlGetMatrixModelview();
@@ -638,11 +659,6 @@ void gfx::Batch::draw(const Material& material)
   // NOTE: In this case, model instance transformation must be computed in the shader
   matModelView = MatrixMultiply(rlGetMatrixTransform(), matView);
 
-  // Upload model normal matrix (if locations available)
-  if (material.shader.locs[SHADER_LOC_MATRIX_NORMAL] != -1)
-    rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_NORMAL], MatrixTranspose(MatrixInvert(matModel)));
-
-
   update();
   
   // Try binding vertex array objects (VAO)
@@ -653,7 +669,7 @@ void gfx::Batch::draw(const Material& material)
   Matrix matModelViewProjection = MatrixMultiply(matModelView, matProjection);
 
   // Send combined model-view-projection matrix to shader
-  rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_MVP], matModelViewProjection);
+  rlSetUniformMatrix(shader->locationMVP, matModelViewProjection);
 
   if (_oldMesh.vertices)
   {
@@ -667,24 +683,6 @@ void gfx::Batch::draw(const Material& material)
   {
     rlDrawVertexArrayInstanced(0, _mesh.vertices.size(), _instanceData.size());
     //rlDrawVertexArrayElementsInstanced(0, _mesh.triangles.size() * 3, 0, _instanceData.size());
-  }
-  
-
-
-  // Unbind all bound texture maps
-  for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
-  {
-    if (material.maps[i].texture.id > 0)
-    {
-      // Select current shader texture slot
-      rlActiveTextureSlot(i);
-
-      // Disable texture for active slot
-      if ((i == MATERIAL_MAP_IRRADIANCE) ||
-        (i == MATERIAL_MAP_PREFILTER) ||
-        (i == MATERIAL_MAP_CUBEMAP)) rlDisableTextureCubemap();
-      else rlDisableTexture();
-    }
   }
 
   // Disable all possible vertex array objects (or VBOs)
@@ -728,10 +726,13 @@ void gfx::Batch::setup(MyMesh&& mesh, FlatShader* shader)
   rlSetVertexAttribute(positionLocation, 3, RL_FLOAT, 0, sizeof(MeshVertex), offsetof(MeshVertex, position));
 
   /* prepare normals */
-  rlEnableVertexBuffer(_vboNormals);
-  glBufferData(GL_ARRAY_BUFFER, _mesh.normals.size() * sizeof(TriangleNormal), _mesh.normals.data(), GL_STATIC_DRAW);
-  rlEnableVertexAttribute(positionNormal);
-  rlSetVertexAttribute(positionNormal, 3, RL_FLOAT, 0, sizeof(TriangleNormal), 0);
+  if (positionNormal != -1)
+  {
+    rlEnableVertexBuffer(_vboNormals);
+    glBufferData(GL_ARRAY_BUFFER, _mesh.normals.size() * sizeof(TriangleNormal), _mesh.normals.data(), GL_STATIC_DRAW);
+    rlEnableVertexAttribute(positionNormal);
+    rlSetVertexAttribute(positionNormal, 3, RL_FLOAT, 0, sizeof(TriangleNormal), 0);
+  }
 
   /*
   rlEnableVertexBufferElement(_vboIndices);
@@ -747,13 +748,16 @@ void gfx::Batch::setup(MyMesh&& mesh, FlatShader* shader)
     rlSetVertexAttributeDivisor(baseLocation + i, 1);
   }
 
-  rlEnableVertexBuffer(_vboColorShades);
-  for (unsigned int i = 0; i < 4; i++)
+  if (shader->locationColorShade != -1)
   {
-    auto baseLocation = shader->locationColorShade;
-    rlEnableVertexAttribute(baseLocation + i);
-    rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
-    rlSetVertexAttributeDivisor(baseLocation + i, 1);
+    rlEnableVertexBuffer(_vboColorShades);
+    for (unsigned int i = 0; i < 4; i++)
+    {
+      auto baseLocation = shader->locationColorShade;
+      rlEnableVertexAttribute(baseLocation + i);
+      rlSetVertexAttribute(baseLocation + i, 4, RL_FLOAT, 0, sizeof(float16), i * sizeof(Vector4));
+      rlSetVertexAttributeDivisor(baseLocation + i, 1);
+    }
   }
 
   rlDisableVertexArray();

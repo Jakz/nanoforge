@@ -28,6 +28,8 @@
     <ClInclude Include="..\..\src\defines.h" />
     <ClInclude Include="..\..\src\glad\glad.h" />
     <ClInclude Include="..\..\src\glad\khrplatform.h" />
+    <ClInclude Include="..\..\src\glad\newer\glad.h" />
+    <ClInclude Include="..\..\src\glad\newer\khrplatform.h" />
     <ClInclude Include="..\..\src\input.h" />
     <ClInclude Include="..\..\src\model\common.h" />
     <ClInclude Include="..\..\src\model\model.h" />
