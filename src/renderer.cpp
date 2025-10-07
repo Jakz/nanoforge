@@ -495,6 +495,16 @@ void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_
     DrawLineV(p0, p1, color(0, 0, 0, 100));
   }
 
+  /* draw dot grid in the center of each cell */
+  for (int x = 0; x < layerSize.width; ++x)
+  {
+    for (int y = 0; y < layerSize.height; ++y)
+    {
+      vec2 p = vec2(base.x + (x + 0.5f) * cellSize.width, base.y + (y + 0.5f) * cellSize.height);
+      DrawPixelV(p, color(0, 0, 0, 100));
+    }
+  }
+
   /* draw pieces of layer below with half opacity */
   auto prev = layer->prev();
   if (prev)
