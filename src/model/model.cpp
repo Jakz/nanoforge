@@ -2,12 +2,12 @@
 
 using namespace nb;
 
-Piece* nb::Layer::piece(const coord2d_t& coord) const
+Piece* nb::Layer::piece(const nb::PieceCoord& coord) const
 {
   for (const auto& p : _pieces)
   {
-    if (coord.x >= p.x() && coord.x < p.x() + p.width() &&  
-       coord.y >= p.y() && coord.y < p.y() + p.height())
+    if (coord.fx() >= p.fx() && coord.fx() < p.fx() + p.width() &&
+       coord.fy() >= p.fy() && coord.fy() < p.fy() + p.height())
       return const_cast<Piece*>(&p);
   }
   return nullptr;

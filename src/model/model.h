@@ -22,7 +22,7 @@ namespace nb
     Layer() : _index(0), _prev(nullptr), _next(nullptr) { }
 
     void add(const Piece& piece) { _pieces.push_back(piece); }
-    Piece* piece(const coord2d_t& coord) const;
+    Piece* piece(const nb::PieceCoord& coord) const;
 
     bounds2d_t bounds() const;
 

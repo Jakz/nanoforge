@@ -511,7 +511,7 @@ void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_
   {
     for (const nb::Piece& piece : prev->pieces())
     {
-      vec2 pos = vec2(base.x + piece.x() * cellSize.width, base.y + piece.y() * cellSize.height);
+      vec2 pos = vec2(base.x + piece.fx() * cellSize.width, base.y + piece.fy() * cellSize.height);
       vec2 size = vec2(piece.width() * cellSize.width, piece.height() * cellSize.height);
       DrawRectangleV(pos, size, piece.color()->top().Fade(0.5f));
       DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 1.0f, piece.color()->edge().Fade(0.8f));
@@ -521,7 +521,7 @@ void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_
   /* draw pieces as rect with outline using piece color */
   for (const nb::Piece& piece : layer->pieces())
   {
-    vec2 pos = vec2(base.x + piece.x() * cellSize.width, base.y + piece.y() * cellSize.height);
+    vec2 pos = vec2(base.x + piece.fx() * cellSize.width, base.y + piece.fy() * cellSize.height);
     vec2 size = vec2(piece.width() * cellSize.width, piece.height() * cellSize.height);
 
     DrawRectangleV(pos, size, piece.color()->top());
@@ -588,7 +588,7 @@ void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::M
     return;
   else if (piece->studs() == nb::StudMode::Centered)
   {
-    _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + piece->width() * 0.5f) * side, height + studHeight * 0.5f, (piece->y() + piece->height() * 0.5f) * side), piece->color()});
+    _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->fx() + piece->width() * 0.5f) * side, height + studHeight * 0.5f, (piece->fy() + piece->height() * 0.5f) * side), piece->color()});
 
     raylib::Vector3 center = raylib::Vector3(0, -studHeight * 0.5f, 0);
     center = center.Transform(_studBatch.instanceData().back().matrix);
@@ -601,7 +601,7 @@ void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::M
     for (int y = 0; y < piece->height(); ++y)
       for (int x = 0; x < piece->width(); ++x)
       {
-        _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->x() + x + 0.5f) * side, height + studHeight * 0.5f, (piece->y() + y + 0.5f) * side), piece->color() });
+        _studBatch.instanceData().push_back({ layerTransform * raylib::Matrix::Translate((piece->fx() + x + 0.5f) * side, height + studHeight * 0.5f, (piece->fy() + y + 0.5f) * side), piece->color() });
 
         raylib::Vector3 center = raylib::Vector3(0, - studHeight * 0.5f, 0);
         center = center.Transform(_studBatch.instanceData().back().matrix);
@@ -621,7 +621,7 @@ raylib::Matrix gfx::Renderer::transformForLayer(layer_index_t index)
 void gfx::Renderer::renderPiece(const nb::Piece& piece, const raylib::Matrix& layerTransform)
 {
   /* translate inside layer according to position */
-  raylib::Matrix pieceTransform = raylib::Matrix::Translate((piece.x() + piece.width() * 0.5f) * side, height * 0.5f, (piece.y() + piece.height() * 0.5f) * side);
+  raylib::Matrix pieceTransform = raylib::Matrix::Translate((piece.fx() + piece.width() * 0.5f) * side, height * 0.5f, (piece.fy() + piece.height() * 0.5f) * side);
 
   prepareStudsForPiece(&piece, layerTransform);
 
@@ -644,8 +644,8 @@ void gfx::Renderer::renderPiece(const nb::Piece& piece, const raylib::Matrix& la
     {
       bool isVertical = piece.width() == 1;
 
-      coord2d_t first = { piece.x(), piece.y() };
-      coord2d_t last = { piece.x() + piece.width() - 1, piece.y() + piece.height() - 1 };
+      coord2d_t first = { piece.fx(), piece.fy() };
+      coord2d_t last = { piece.fx() + piece.width() - 1, piece.fy() + piece.height() - 1 };
 
       /* first: half cylinder */
       pieceTransform = raylib::Matrix::Translate((first.x + 0.5f) * side, height * 0.5f, (first.y + 0.5f) * side);
