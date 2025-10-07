@@ -127,12 +127,15 @@ namespace gfx
 
   protected:
 
+    raylib::Matrix transformForLayer(layer_index_t idx);
+
     void prepareStudsForPiece(const nb::Piece* piece, const raylib::Matrix& layerTransform);
     
     void renderLayerGrid3d(layer_index_t index, size2d_t size);
     void renderLayer(const nb::Layer* layer);
     void renderModel(const nb::Model* model);
     void renderStuds();
+    void renderPiece(const nb::Piece& piece, const raylib::Matrix& layerTransform);
 
   public:
     Renderer(Context* context);

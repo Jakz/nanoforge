@@ -69,6 +69,7 @@ namespace nb
 
     void shift(Direction direction);
     void shift(const coord2d_t& delta);
+    void grow(Direction direction, coord_t amount = 1);
 
     void shrinkToFit();
     void setSizeAccordingToBounds();

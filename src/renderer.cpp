@@ -103,7 +103,7 @@ static inline void DrawCubeEdgesFast(float w, float h, float d, const Matrix& wo
   for (int i = 0; i < 12; ++i) {
     Vector3 a = Vector3Transform(v[e[i][0]], world);
     Vector3 b = Vector3Transform(v[e[i][1]], world);
-    DrawLine3D(a, b, col);
+    //DrawLine3D(a, b, col);
     DrawCylinderEx(a, b, 0.02f, 0.02f, 8, col);
   }
 }
@@ -537,6 +537,16 @@ void gfx::Renderer::render(const nb::Model* model)
   _studBatch.instanceData().clear();
 
   renderModel(model);
+  if (_context->input->hover())
+  {
+    /* render a wireframe box in place of hover piece */
+    const coord3d_t& hover = *_context->input->hover();
+    raylib::Matrix layerTransform = transformForLayer(hover.z);
+    raylib::Matrix pieceTransform = raylib::Matrix::Translate((hover.x + _context->brush->width() * 0.5f) * side, height * 0.5f, (hover.y + _context->brush->height() * 0.5f) * side);
+    auto finalTransform = layerTransform * pieceTransform;
+    DrawCubeEdgesFast(side * _context->brush->width(), height, side * _context->brush->height(), finalTransform, color(255, 0, 0, 200));
+  }
+
   renderStuds();
 }
 
@@ -592,79 +602,89 @@ void gfx::Renderer::prepareStudsForPiece(const nb::Piece* piece, const raylib::M
   }
 }
 
+raylib::Matrix gfx::Renderer::transformForLayer(layer_index_t index)
+{
+  raylib::Matrix layerTransform = raylib::Matrix::Translate(0.0f, index * height, 0.0f);
+  return layerTransform;
+}
+
+void gfx::Renderer::renderPiece(const nb::Piece& piece, const raylib::Matrix& layerTransform)
+{
+  /* translate inside layer according to position */
+  raylib::Matrix pieceTransform = raylib::Matrix::Translate((piece.x() + piece.width() * 0.5f) * side, height * 0.5f, (piece.y() + piece.height() * 0.5f) * side);
+
+  prepareStudsForPiece(&piece, layerTransform);
+
+  pieceTransform = raylib::Matrix::Scale(piece.width(), 1.0f, piece.height()) * pieceTransform;
+  auto finalTransform = layerTransform * pieceTransform;
+
+  if (piece.type() == nb::PieceType::Round)
+  {
+    if (piece.width() == 1 && piece.height() == 1)
+    {
+      _cylinderBatch.instanceData().push_back({ finalTransform, piece.color() });
+
+      raylib::Vector3 center = vec3(0.0f, -height / 2.0f, 0.0f);
+      center = center.Transform(finalTransform);
+
+      if (_context->prefs.renderer.drawEdges)
+        DrawCylinderWireframe(center, side / 2, height, 32, piece.color()->edge(), MatrixIdentity(), _camera);
+    }
+    else if (piece.width() == 1 || piece.height() == 1)
+    {
+      bool isVertical = piece.width() == 1;
+
+      coord2d_t first = { piece.x(), piece.y() };
+      coord2d_t last = { piece.x() + piece.width() - 1, piece.y() + piece.height() - 1 };
+
+      /* first: half cylinder */
+      pieceTransform = raylib::Matrix::Translate((first.x + 0.5f) * side, height * 0.5f, (first.y + 0.5f) * side);
+
+      if (isVertical)
+        pieceTransform = raylib::Matrix::RotateY(90 * DEG2RAD) * pieceTransform;
+      else
+        pieceTransform = raylib::Matrix::RotateY(180 * DEG2RAD) * pieceTransform;
+
+      _halfCylinderBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
+
+      /* last: half cylinder */
+      pieceTransform = raylib::Matrix::Translate((last.x + 0.5f) * side, height * 0.5f, (last.y + 0.5f) * side);
+
+      if (isVertical)
+        pieceTransform = raylib::Matrix::RotateY(-90 * DEG2RAD) * pieceTransform;
+
+      _halfCylinderBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
+
+      /* filler */
+      auto delta = (last - first);
+      vec2 center = vec2(delta.x * 0.5f + first.x + 0.5f, delta.y * 0.5 + first.y + 0.5f);
+
+      pieceTransform = raylib::Matrix::Translate(center.x * side, height * 0.5f, center.y * side);
+      pieceTransform = raylib::Matrix::Scale(delta.x + 1.0f - (isVertical ? 0.0f : 1.0f), 1.0f, delta.y + 1.0f - (isVertical ? 1.0f : 0.0f)) * pieceTransform;
+
+      _cubeBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
+
+      //if (_context->prefs.renderer.drawEdges)
+        //DrawCubeEdgesFast(1.0f, height, (extent - 2.0f) * side, layerTransform * pieceTransform, piece.color()->edge());
+    }
+  }
+  else
+  {
+    _cubeBatch.instanceData().push_back({ finalTransform, piece.color() });
+
+    if (_context->prefs.renderer.drawEdges)
+      DrawCubeEdgesFast(side, height, side, finalTransform, piece.color()->edge());
+  }
+}
+
 void gfx::Renderer::renderLayer(const nb::Layer* layer)
 {
   /* compute the matrix for the layer */
-  raylib::Matrix layerTransform = raylib::Matrix::Translate(0.0f, layer->index() * height, 0.0f);
+  auto layerTransform = transformForLayer(layer->index());
 
   for (const nb::Piece& piece : layer->pieces())
   {
-    /* translate inside layer according to position */
-    raylib::Matrix pieceTransform = raylib::Matrix::Translate((piece.x() + piece.width() * 0.5f) * side, height * 0.5f, (piece.y() + piece.height() * 0.5f) * side);
-
-    prepareStudsForPiece(&piece, layerTransform);
-    
-    pieceTransform = raylib::Matrix::Scale(piece.width(), 1.0f, piece.height()) * pieceTransform;
-    auto finalTransform = layerTransform * pieceTransform;
-    
-    if (piece.type() == nb::PieceType::Round)
-    {
-      if (piece.width() == 1 && piece.height() == 1)
-      {
-        _cylinderBatch.instanceData().push_back({ finalTransform, piece.color() });
-        
-        raylib::Vector3 center = vec3(0.0f, -height / 2.0f, 0.0f);
-        center = center.Transform(finalTransform);
-        
-        if (_context->prefs.renderer.drawEdges)
-          DrawCylinderWireframe(center, side / 2, height, 32, piece.color()->edge(), MatrixIdentity(), _camera);
-      }
-      else if (piece.width() == 1 || piece.height() == 1)
-      {
-        bool isVertical = piece.width() == 1;   
-
-        coord2d_t first = { piece.x(), piece.y() };
-        coord2d_t last = { piece.x() + piece.width() - 1, piece.y() + piece.height() - 1 };
-
-        /* first: half cylinder */
-        pieceTransform = raylib::Matrix::Translate((first.x + 0.5f) * side, height * 0.5f, (first.y + 0.5f) * side);
-
-        if (isVertical)
-          pieceTransform = raylib::Matrix::RotateY(90 * DEG2RAD) * pieceTransform;
-        else
-          pieceTransform = raylib::Matrix::RotateY(180 * DEG2RAD) * pieceTransform;
-
-        _halfCylinderBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
-
-        /* last: half cylinder */
-        pieceTransform = raylib::Matrix::Translate((last.x + 0.5f) * side, height * 0.5f, (last.y + 0.5f) * side);
-
-        if (isVertical)
-          pieceTransform = raylib::Matrix::RotateY(-90 * DEG2RAD) * pieceTransform;
-
-        _halfCylinderBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
-
-        /* filler */
-        auto delta = (last - first);
-        vec2 center = vec2(delta.x * 0.5f + first.x + 0.5f, delta.y * 0.5 + first.y + 0.5f);
-
-        pieceTransform = raylib::Matrix::Translate(center.x * side, height * 0.5f, center.y * side);
-        pieceTransform = raylib::Matrix::Scale(delta.x + 1.0f - (isVertical ? 0.0f : 1.0f), 1.0f, delta.y + 1.0f - (isVertical ? 1.0f : 0.0f)) * pieceTransform;
-
-        _cubeBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
-
-        //if (_context->prefs.renderer.drawEdges)
-          //DrawCubeEdgesFast(1.0f, height, (extent - 2.0f) * side, layerTransform * pieceTransform, piece.color()->edge());
-      }
-    }
-    else
-    {
-      _cubeBatch.instanceData().push_back({ finalTransform, piece.color() });
-
-      if (_context->prefs.renderer.drawEdges)
-        DrawCubeEdgesFast(side, height, side, finalTransform, piece.color()->edge());
-    }
-
+    renderPiece(piece, layerTransform);
   }
 
   for (auto* batch : _shapeBatches)
