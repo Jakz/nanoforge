@@ -43,7 +43,9 @@ flat out mat4 vColorShades;
 
 void main()
 {
-  vNormalWorld = vertexNormal;
+  mat3 R = mat3(instanceTransform);
+  vNormalWorld = normalize(R * vertexNormal);
+
   vColorShades = colorShades;
   gl_Position = mvp * instanceTransform * vec4(vertexPosition, 1.0);
 }
@@ -393,6 +395,8 @@ gfx::MyMesh gfx::Renderer::generateHalfCylinder()
 
   par_shapes_translate(shape, 0, -height * 0.5f, 0);
 
+  par_shapes_unweld(shape, true);
+  par_shapes_compute_normals(shape);
 
   gfx::MyMesh mesh;
   mesh.generateAndFree(shape);
@@ -463,9 +467,10 @@ void gfx::Renderer::init()
   rlUpdateVertexBuffer(*_cylinderBatch.mesh().vboId, _cylinderBatch.mesh().vertices, _cylinderBatch.mesh().vertexCount * 3 * sizeof(float), 0);
   rlDisableVertexArray();*/
 
-  _shapeBatches.resize(2);
+  _shapeBatches.resize(3);
   _shapeBatches[0] = &_cubeBatch;
   _shapeBatches[1] = &_cylinderBatch;
+  _shapeBatches[2] = &_halfCylinderBatch;
 }
 
 void gfx::Renderer::deinit()
@@ -616,7 +621,40 @@ void gfx::Renderer::renderLayer(const nb::Layer* layer)
       }
       else if (piece.width() == 1 || piece.height() == 1)
       {
-        
+        bool isVertical = piece.width() == 1;   
+
+        coord2d_t first = { piece.x(), piece.y() };
+        coord2d_t last = { piece.x() + piece.width() - 1, piece.y() + piece.height() - 1 };
+
+        /* first: half cylinder */
+        pieceTransform = raylib::Matrix::Translate((first.x + 0.5f) * side, height * 0.5f, (first.y + 0.5f) * side);
+
+        if (isVertical)
+          pieceTransform = raylib::Matrix::RotateY(90 * DEG2RAD) * pieceTransform;
+        else
+          pieceTransform = raylib::Matrix::RotateY(180 * DEG2RAD) * pieceTransform;
+
+        _halfCylinderBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
+
+        /* last: half cylinder */
+        pieceTransform = raylib::Matrix::Translate((last.x + 0.5f) * side, height * 0.5f, (last.y + 0.5f) * side);
+
+        if (isVertical)
+          pieceTransform = raylib::Matrix::RotateY(-90 * DEG2RAD) * pieceTransform;
+
+        _halfCylinderBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
+
+        /* filler */
+        auto delta = (last - first);
+        vec2 center = vec2(delta.x * 0.5f + first.x + 0.5f, delta.y * 0.5 + first.y + 0.5f);
+
+        pieceTransform = raylib::Matrix::Translate(center.x * side, height * 0.5f, center.y * side);
+        pieceTransform = raylib::Matrix::Scale(delta.x + 1.0f - (isVertical ? 0.0f : 1.0f), 1.0f, delta.y + 1.0f - (isVertical ? 1.0f : 0.0f)) * pieceTransform;
+
+        _cubeBatch.instanceData().push_back({ layerTransform * pieceTransform, piece.color() });
+
+        //if (_context->prefs.renderer.drawEdges)
+          //DrawCubeEdgesFast(1.0f, height, (extent - 2.0f) * side, layerTransform * pieceTransform, piece.color()->edge());
       }
     }
     else
@@ -642,6 +680,7 @@ void gfx::Renderer::renderStuds()
 void gfx::Renderer::renderModel(const nb::Model* model)
 {
   _cylinderBatch.instanceData().clear();
+  _halfCylinderBatch.instanceData().clear();
   _cubeBatch.instanceData().clear();
   
   for (const auto& layer : model->layers())

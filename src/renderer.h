@@ -40,6 +40,11 @@ namespace gfx
     void generateAndFree(par_shapes_mesh* shape);
   };
 
+  class PieceRenderer
+  {
+
+  };
+
   class Batch
   {
     raylib::MeshUnmanaged _oldMesh;
