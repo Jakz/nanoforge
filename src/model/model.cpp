@@ -13,24 +13,24 @@ Piece* nb::Layer::piece(const nb::PieceCoord& coord) const
   return nullptr;
 }
 
-bounds2d_t nb::Layer::bounds() const
+PieceBounds nb::Layer::bounds() const
 {
   /* iterate all pieces and update bounds */
-  bounds2d_t b;
+  PieceBounds b;
 
   for (const auto& p : _pieces)
   {
     b += p.coord();
-    b += coord2d_t(p.x() + p.width() - 1, p.y() + p.height() - 1);
+    b += p.coord() + p.size();
   }
   
   return b;
 }
 
 
-bounds2d_t nb::Model::bounds() const
+PieceBounds nb::Model::bounds() const
 {
-  bounds2d_t b;
+  PieceBounds b;
 
   for (const auto& layer : _layers)
      b += layer->bounds();
@@ -141,7 +141,7 @@ void nb::Model::shift(Direction direction)
 
 void nb::Model::shrinkToFit()
 {
-  bounds2d_t b = this->bounds();
+  PieceBounds b = this->bounds();
   this->shift(- b.min());
 }
 

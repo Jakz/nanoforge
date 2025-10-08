@@ -24,7 +24,7 @@ namespace nb
     void add(const Piece& piece) { _pieces.push_back(piece); }
     Piece* piece(const nb::PieceCoord& coord) const;
 
-    bounds2d_t bounds() const;
+    PieceBounds bounds() const;
 
     layer_index_t index() const { return _index; }
     const auto& pieces() const { return _pieces; }
@@ -61,7 +61,7 @@ namespace nb
 
     void clear() { _layers.clear(); }
 
-    bounds2d_t bounds() const;
+    PieceBounds bounds() const;
     size2d_t size() const { return _info.size; }
     
     Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }

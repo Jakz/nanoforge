@@ -55,6 +55,14 @@ namespace nb
     
     float fx() const { return whole.x + fraction.x / float(DENOMINATOR); }
     float fy() const { return whole.y + fraction.y / float(DENOMINATOR); }
+    coord_t tx() const { return whole.x * DENOMINATOR + fraction.x; }
+    coord_t ty() const { return whole.y * DENOMINATOR + fraction.y; }
+    coord2d_t ticks() const { return coord2d_t(tx(), ty()); }
+    coord_t wx() const { return whole.x; }
+    coord_t wy() const { return whole.y; }
+    coord_t ffx() const { return whole.x * DENOMINATOR; }
+    coord_t ffy() const { return whole.y * DENOMINATOR; }
+
     operator vec2() const { return vec2(fx(), fy()); }
     
     PieceCoord(float fx, float fy)
@@ -76,6 +84,11 @@ namespace nb
       while (fraction.y >= 100) { ++whole.y; fraction.y -= DENOMINATOR; }
       while (fraction.x < 0) { --whole.x; fraction.x += DENOMINATOR; }
       while (fraction.y < 0) { --whole.y; fraction.y += DENOMINATOR; }
+    }
+
+    PieceCoord operator+(size2d_t size) const
+    {
+      return PieceCoord(whole.x + size.width, fraction.x, whole.y + size.height, fraction.y);
     }
         
     PieceCoord& operator+=(coord2d_t coord)
@@ -141,7 +154,28 @@ namespace nb
 
     int32_t width() const { return _size.width; }
     int32_t height() const { return _size.height; }
-    
-    
+  };
+
+  struct PieceBounds
+  {
+  protected:
+    bounds2d_t _bounds;
+
+  public:
+    PieceBounds() : _bounds() { }
+
+    void operator+=(const Piece& piece)
+    {
+      _bounds += piece.coord().ticks();
+      _bounds += piece.coord().ticks() + coord2d_t(piece.width() * PieceCoord::DENOMINATOR, piece.height() * PieceCoord::DENOMINATOR);
+    }
+
+    PieceBounds& operator+=(const PieceCoord& coord) { _bounds += coord.ticks(); return *this; }
+    PieceBounds& operator+=(const PieceBounds& other) { _bounds += other._bounds; return *this; }
+
+    size2d_t size() const { return size2d_t(_bounds.size().width / PieceCoord::DENOMINATOR, _bounds.size().height / PieceCoord::DENOMINATOR); }
+    coord2d_t min() const { return coord2d_t(_bounds.min().x / PieceCoord::DENOMINATOR, _bounds.min().y / PieceCoord::DENOMINATOR); }
+
+    const bounds2d_t& bounds() const { return _bounds; }
   };
 }
