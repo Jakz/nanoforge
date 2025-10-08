@@ -159,8 +159,8 @@ void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
           "position",
           fkyaml::node::sequence({
             layer->index(),
-            fkyaml::node::sequence({ piece.coord().wx() , piece.coord().ffx() }),
-            fkyaml::node::sequence({ piece.coord().wy() , piece.coord().ffy() })
+            piece.coord().tx(),
+            piece.coord().ty()
           }) 
         },
         { "size", fkyaml::node::sequence({ piece.width(), piece.height() }) },
@@ -218,30 +218,8 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
     for (const auto& p : node["pieces"].as_seq())
     {
       int z = p["position"][0].as_int();
-
-      int wx, fx, wy, fy;
-
-      if (p["position"][1].is_sequence())
-      {
-        wx = p["position"][1][0].as_int();
-        fx = p["position"][1][1].as_int();
-      }
-      else
-      {
-        wx = p["position"][1].as_int();
-        fx = 0;
-      }
-
-      if (p["position"][2].is_sequence())
-      {
-        wy = p["position"][2][0].as_int();
-        fy = p["position"][2][1].as_int();
-      }
-      else
-      {
-        wy = p["position"][2].as_int();
-        fy = 0;
-      }
+      int x = p["position"][1].as_int();
+      int y = p["position"][2].as_int();
 
       const nb::PieceColor* color = _context->data->colors.white;
       nb::PieceType type = nb::PieceType::Square;
@@ -278,7 +256,7 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
           studs = nb::StudMode::Full;
       }
 
-      model.addPiece(z, nb::Piece(nb::PieceCoord(wx, wy, fx, fy), color, nb::PieceOrientation::North, type, size, studs));
+      model.addPiece(z, nb::Piece(nb::PieceCoord(x, y, true), color, nb::PieceOrientation::North, type, size, studs));
     }
 
     auto bounds = model.bounds();

@@ -644,8 +644,8 @@ void gfx::Renderer::renderPiece(const nb::Piece& piece, const raylib::Matrix& la
     {
       bool isVertical = piece.width() == 1;
 
-      coord2d_t first = { piece.fx(), piece.fy() };
-      coord2d_t last = { piece.fx() + piece.width() - 1, piece.fy() + piece.height() - 1 };
+      vec2 first = { piece.fx(), piece.fy() };
+      vec2 last = { piece.fx() + piece.width() - 1, piece.fy() + piece.height() - 1 };
 
       /* first: half cylinder */
       pieceTransform = raylib::Matrix::Translate((first.x + 0.5f) * side, height * 0.5f, (first.y + 0.5f) * side);

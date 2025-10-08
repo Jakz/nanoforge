@@ -73,7 +73,15 @@ namespace nb
     }
     
     PieceCoord(coord2d_t coord) : whole(coord), fraction(0, 0) { }
-    PieceCoord(coord_t x, coord_t y) : whole(x, y), fraction(0, 0) { }
+    PieceCoord(coord_t x, coord_t y, bool total = false) : whole(x, y), fraction(0, 0)
+    { 
+      if (total)
+      {
+        whole.x = x / DENOMINATOR; fraction.x = x % DENOMINATOR;
+        whole.y = y / DENOMINATOR; fraction.y = y % DENOMINATOR;
+      }
+    }
+
     PieceCoord(coord_t x, coord_t fx, coord_t y, coord_t fy) :
       whole(x, y), fraction(fx, fy) { normalize(); }
     
@@ -145,8 +153,8 @@ namespace nb
     }
 
     const PieceCoord& coord() const { return _coord; }
-    coord_t fx() const { return _coord.fx(); }
-    coord_t fy() const { return _coord.fy(); }
+    float fx() const { return _coord.fx(); }
+    float fy() const { return _coord.fy(); }
     const PieceColor* color() const { return _color; }
     size2d_t size() const { return _size; }
     PieceType type() const { return _type; }

@@ -29,8 +29,7 @@ struct Preferences
     struct
     {
       vec2 marginFromTop = vec2(10.0f, 10.0f);
-
-
+      bool halfSteps = false;
     } grid;
   } ui;
 
