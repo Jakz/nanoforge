@@ -3,6 +3,7 @@
 #include "defines.h"
 
 #include "model/common.h"
+#include "model/piece.h"
 
 #include <unordered_set>
 #include <optional>
@@ -16,7 +17,7 @@ class InputHandler
 
   std::unordered_set<int> _keyState;
   std::array<bool, 3> _mouseState;
-  std::optional<coord3d_t> _hover;
+  std::optional<nb::PieceCoord3d> _hover;
 
   nb::Model* model;
 

@@ -13,6 +13,8 @@ class UI;
 class InputHandler;
 class Loader;
 
+enum class GridSnapMode { Whole, Half, Free };
+
 struct Preferences
 {
   struct
@@ -29,7 +31,8 @@ struct Preferences
     struct
     {
       vec2 marginFromTop = vec2(10.0f, 10.0f);
-      bool halfSteps = false;
+      GridSnapMode halfSteps = GridSnapMode::Whole;
+      bool centerPieceInHover = false;
     } grid;
   } ui;
 

@@ -531,10 +531,10 @@ void gfx::Renderer::renderLayerGrid2d(vec2 base, const nb::Layer* layer, size2d_
   /* draw hover if present */
   if (_context->input->hover())
   {
-    const coord3d_t& hover = *_context->input->hover();
+    const nb::PieceCoord3d& hover = *_context->input->hover();
     if (hover.z == layer->index() || _context->prefs.ui.drawHoverOnAllLayers)
     {
-      vec2 pos = vec2(base.x + hover.x * cellSize.width, base.y + hover.y * cellSize.height);
+      vec2 pos = vec2(base.x + hover.x() * cellSize.width, base.y + hover.y() * cellSize.height);
       vec2 size = vec2(cellSize.width * _context->brush->width(), cellSize.height * _context->brush->height());
       DrawRectangleV(pos, size, color(180, 0, 0, 100));
       DrawRectangleLinesEx(rect(pos.x, pos.y, size.x, size.y), 2.0f, color(255, 0, 0, 200));
@@ -550,9 +550,9 @@ void gfx::Renderer::render(const nb::Model* model)
   if (_context->input->hover())
   {
     /* render a wireframe box in place of hover piece */
-    const coord3d_t& hover = *_context->input->hover();
+    const nb::PieceCoord3d& hover = *_context->input->hover();
     raylib::Matrix layerTransform = transformForLayer(hover.z);
-    raylib::Matrix pieceTransform = raylib::Matrix::Translate((hover.x + _context->brush->width() * 0.5f) * side, height * 0.5f, (hover.y + _context->brush->height() * 0.5f) * side);
+    raylib::Matrix pieceTransform = raylib::Matrix::Translate((hover.x() + _context->brush->width() * 0.5f) * side, height * 0.5f, (hover.y() + _context->brush->height() * 0.5f) * side);
     auto finalTransform = layerTransform * pieceTransform;
     DrawCubeEdgesFast(side * _context->brush->width(), height, side * _context->brush->height(), finalTransform, color(255, 0, 0, 200));
   }

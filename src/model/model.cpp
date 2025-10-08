@@ -90,12 +90,12 @@ void nb::Model::addPiece(layer_index_t layerIndex, const Piece& piece)
     layer->add(piece);
 }
 
-Piece* nb::Model::piece(const coord3d_t& coord) const
+Piece* nb::Model::piece(const PieceCoord3d& coord) const
 {
   const Layer* layer = this->layer(coord.z);
 
   if (layer)
-    return layer->piece(coord.xy());
+    return layer->piece(coord.coord);
 
   return nullptr;
 }

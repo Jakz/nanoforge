@@ -113,6 +113,19 @@ namespace nb
     }
   };
 
+
+  struct PieceCoord3d
+  {
+    layer_index_t z;
+    nb::PieceCoord coord;
+
+    PieceCoord3d(layer_index_t z, const nb::PieceCoord& coord) : z(z), coord(coord) { }
+
+    auto x() const { return coord.fx(); }
+    auto y() const { return coord.fy(); }
+  };
+
+
   using piece_type_t = std::string;
 
   class Piece

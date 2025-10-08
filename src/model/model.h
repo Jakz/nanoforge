@@ -82,7 +82,7 @@ namespace nb
     layer_index_t lastLayerIndex() const { return static_cast<layer_index_t>(_layers.size()) - 1; }
     layer_index_t layerCount() const { return static_cast<layer_index_t>(_layers.size()); }
 
-    Piece* piece(const coord3d_t& coord) const;
+    Piece* piece(const PieceCoord3d& coord) const;
     void remove(const Piece* piece);
   };
 

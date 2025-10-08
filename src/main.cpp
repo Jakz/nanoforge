@@ -350,7 +350,7 @@ int main(int arg, char* argv[])
     if (input->hover())
     {
       /* draw string with coordinate in bottom left corner */
-      std::string coordStr = TextFormat("Hover: %d - (%d, %d)", input->hover()->z, input->hover()->x, input->hover()->y);
+      std::string coordStr = TextFormat("Hover: %d - (%2.2f, %2.2f)", input->hover()->z, input->hover()->x(), input->hover()->y());
       DrawText(coordStr.c_str(), 10, GetScreenHeight() - 30, 14, DARKGRAY);
     }
 
