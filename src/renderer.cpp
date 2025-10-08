@@ -625,7 +625,19 @@ void gfx::Renderer::renderPiece(const nb::Piece& piece, const raylib::Matrix& la
 
   prepareStudsForPiece(&piece, layerTransform);
 
+  /*
+  if (piece.width() != piece.height())
+  {
+    pieceTransform = raylib::Matrix::Translate(-side, 0.0f, 0.0f) * pieceTransform;
+    pieceTransform = raylib::Matrix::RotateY(45 * DEG2RAD) * pieceTransform;
+    pieceTransform = raylib::Matrix::Translate(side, 0.0f, 0.0f) * pieceTransform;
+  }
+  */
+
+
   pieceTransform = raylib::Matrix::Scale(piece.width(), 1.0f, piece.height()) * pieceTransform;
+
+
   auto finalTransform = layerTransform * pieceTransform;
 
   if (piece.type() == nb::PieceType::Round)
