@@ -188,10 +188,12 @@ UI::UI(Context* context) : _context(context), _paletteWindowVisible(true), _stud
 
 void UI::drawToolbar()
 {
+  ImGuiViewport* vp = ImGui::GetMainViewport();
+  
   ImGuiIO& io = ImGui::GetIO();
   // finestra a tutta larghezza, senza bordi
-  ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-  ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, _context->prefs.ui.toolbar.height));
+  ImGui::SetNextWindowPos(vp->WorkPos, ImGuiCond_Always);
+  ImGui::SetNextWindowSize(ImVec2(vp->WorkSize.x, _context->prefs.ui.toolbar.height));
   ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
     ImGuiWindowFlags_NoSavedSettings;
@@ -267,14 +269,42 @@ void UI::drawPieceTypeWindow()
   ImGui::End();
 }
 
+void UI::drawMainMenu()
+{
+  if (ImGui::BeginMainMenuBar())
+  {
+    if (ImGui::BeginMenu("File"))
+    {
+      if (ImGui::MenuItem("New", "Ctrl+N")) { /* ... */ }
+      if (ImGui::MenuItem("Open...", "Ctrl+O")) { /* ... */ }
+      ImGui::Separator();
+      bool autosave = true;
+      if (ImGui::MenuItem("Autosave", nullptr, &autosave)) { /* toggle */ }
+      ImGui::Separator();
+
+      if (ImGui::MenuItem("Exit"))
+        _context->shouldExit = true;
+
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Edit"))
+    {
+      if (ImGui::MenuItem("Undo", "Ctrl+Z", false, /*enabled=*/true)) { /* ... */ }
+      ImGui::EndMenu();
+    }
+    ImGui::EndMainMenuBar();
+  }
+}
+
 void UI::draw()
 {
+  drawMainMenu();
+  drawToolbar();
+
   drawPaletteWindow();
   drawPieceTypeWindow();
   if (_studWindowVisible)
     drawStudModeWindow();
 
   drawViewOptionsWindow();
-  
-  drawToolbar();
 }

@@ -311,7 +311,7 @@ int main(int arg, char* argv[])
 
   SetTargetFPS(60);
 
-  while (!WindowShouldClose())
+  while (!WindowShouldClose() && !context.shouldExit)
   {
     BeginDrawing();
     ClearBackground(RAYWHITE);
