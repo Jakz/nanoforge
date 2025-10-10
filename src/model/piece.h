@@ -46,6 +46,86 @@ namespace nb
     Vector3 rightV() const { return Vector3{ right().r / 255.0f, right().g / 255.0f, right().b / 255.0f }; }
   };
 
+  struct PieceCoord
+  {
+    static constexpr coord_t DENOMINATOR = 100;
+    
+    coord2d_t whole;
+    coord2d_t fraction;
+    
+    float fx() const { return whole.x + fraction.x / float(DENOMINATOR); }
+    float fy() const { return whole.y + fraction.y / float(DENOMINATOR); }
+    coord_t tx() const { return whole.x * DENOMINATOR + fraction.x; }
+    coord_t ty() const { return whole.y * DENOMINATOR + fraction.y; }
+    coord2d_t ticks() const { return coord2d_t(tx(), ty()); }
+    coord_t wx() const { return whole.x; }
+    coord_t wy() const { return whole.y; }
+    coord_t ffx() const { return whole.x * DENOMINATOR; }
+    coord_t ffy() const { return whole.y * DENOMINATOR; }
+
+    operator vec2() const { return vec2(fx(), fy()); }
+    
+    PieceCoord(float fx, float fy)
+    {
+      whole = coord2d_t{ int(fx), int(fy) };
+      fraction = coord2d_t{ int((fx - whole.x) * DENOMINATOR),
+                            int((fy - whole.y) * DENOMINATOR) };
+    }
+    
+    PieceCoord(coord2d_t coord) : whole(coord), fraction(0, 0) { }
+    PieceCoord(coord_t x, coord_t y, bool total = false) : whole(x, y), fraction(0, 0)
+    { 
+      if (total)
+      {
+        whole.x = x / DENOMINATOR; fraction.x = x % DENOMINATOR;
+        whole.y = y / DENOMINATOR; fraction.y = y % DENOMINATOR;
+      }
+    }
+
+    PieceCoord(coord_t x, coord_t fx, coord_t y, coord_t fy) :
+      whole(x, y), fraction(fx, fy) { normalize(); }
+    
+    
+    void normalize()
+    {
+      while (fraction.x >= 100) { ++whole.x; fraction.x -= DENOMINATOR; }
+      while (fraction.y >= 100) { ++whole.y; fraction.y -= DENOMINATOR; }
+      while (fraction.x < 0) { --whole.x; fraction.x += DENOMINATOR; }
+      while (fraction.y < 0) { --whole.y; fraction.y += DENOMINATOR; }
+    }
+
+    PieceCoord operator+(size2d_t size) const
+    {
+      return PieceCoord(whole.x + size.width, fraction.x, whole.y + size.height, fraction.y);
+    }
+        
+    PieceCoord& operator+=(coord2d_t coord)
+    {
+      whole += coord; return *this;
+    }
+    
+    PieceCoord& operator+=(const PieceCoord& other)
+    {
+      whole += other.whole;
+      fraction += other.fraction;
+      normalize();
+      return *this;
+    }
+  };
+
+
+  struct PieceCoord3d
+  {
+    layer_index_t z;
+    nb::PieceCoord coord;
+
+    PieceCoord3d(layer_index_t z, const nb::PieceCoord& coord) : z(z), coord(coord) { }
+
+    auto x() const { return coord.fx(); }
+    auto y() const { return coord.fy(); }
+  };
+
+
   using piece_type_t = std::string;
 
   class Piece
@@ -54,19 +134,19 @@ namespace nb
     PieceOrientation _orientation;
     PieceType _type;
     StudMode _studs;
-    coord2d_t _coord;
+    PieceCoord _coord;
     size2d_t _size;
 
   public:
     Piece() : _coord(0, 0), _color(nullptr), _orientation(PieceOrientation::North), _size(1, 1) { }
-    Piece(coord2d_t coord, const PieceColor* color, PieceOrientation orientation, PieceType type = PieceType::Square, size2d_t size = size2d_t(1, 1), StudMode studs = StudMode::Full) :
+    Piece(PieceCoord coord, const PieceColor* color, PieceOrientation orientation, PieceType type = PieceType::Square, size2d_t size = size2d_t(1, 1), StudMode studs = StudMode::Full) :
       _coord(coord), _color(color), _orientation(orientation), _type(type), _size(size), _studs(studs) { }
     
     void resize(size2d_t size) { _size = size; }
     void swapSize() { _size = size2d_t(_size.height, _size.width); }
 
-    void moveAt(coord2d_t coord) { _coord = coord; }
-    void moveBy(coord2d_t delta) { _coord += delta; }
+    void moveAt(PieceCoord coord) { _coord = coord; }
+    void moveBy(PieceCoord delta) { _coord += delta; }
 
     void moveBy(coord_t x, coord_t y) { _coord += coord2d_t(x, y); }
 
@@ -85,9 +165,9 @@ namespace nb
       return other;
     }
 
-    coord2d_t coord() const { return _coord; }
-    coord_t x() const { return _coord.x; }
-    coord_t y() const { return _coord.y; }
+    const PieceCoord& coord() const { return _coord; }
+    float fx() const { return _coord.fx(); }
+    float fy() const { return _coord.fy(); }
     const PieceColor* color() const { return _color; }
     size2d_t size() const { return _size; }
     PieceType type() const { return _type; }
@@ -95,7 +175,28 @@ namespace nb
 
     int32_t width() const { return _size.width; }
     int32_t height() const { return _size.height; }
-    
-    
+  };
+
+  struct PieceBounds
+  {
+  protected:
+    bounds2d_t _bounds;
+
+  public:
+    PieceBounds() : _bounds() { }
+
+    void operator+=(const Piece& piece)
+    {
+      _bounds += piece.coord().ticks();
+      _bounds += piece.coord().ticks() + coord2d_t(piece.width() * PieceCoord::DENOMINATOR, piece.height() * PieceCoord::DENOMINATOR);
+    }
+
+    PieceBounds& operator+=(const PieceCoord& coord) { _bounds += coord.ticks(); return *this; }
+    PieceBounds& operator+=(const PieceBounds& other) { _bounds += other._bounds; return *this; }
+
+    size2d_t size() const { return size2d_t(_bounds.size().width / PieceCoord::DENOMINATOR, _bounds.size().height / PieceCoord::DENOMINATOR); }
+    coord2d_t min() const { return coord2d_t(_bounds.min().x / PieceCoord::DENOMINATOR, _bounds.min().y / PieceCoord::DENOMINATOR); }
+
+    const bounds2d_t& bounds() const { return _bounds; }
   };
 }

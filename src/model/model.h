@@ -22,9 +22,9 @@ namespace nb
     Layer() : _index(0), _prev(nullptr), _next(nullptr) { }
 
     void add(const Piece& piece) { _pieces.push_back(piece); }
-    Piece* piece(const coord2d_t& coord) const;
+    Piece* piece(const nb::PieceCoord& coord) const;
 
-    bounds2d_t bounds() const;
+    PieceBounds bounds() const;
 
     layer_index_t index() const { return _index; }
     const auto& pieces() const { return _pieces; }
@@ -61,7 +61,7 @@ namespace nb
 
     void clear() { _layers.clear(); }
 
-    bounds2d_t bounds() const;
+    PieceBounds bounds() const;
     size2d_t size() const { return _info.size; }
     
     Layer* layer(layer_index_t index) { return (index < _layers.size()) ? _layers[index].get() : nullptr; }
@@ -82,7 +82,7 @@ namespace nb
     layer_index_t lastLayerIndex() const { return static_cast<layer_index_t>(_layers.size()) - 1; }
     layer_index_t layerCount() const { return static_cast<layer_index_t>(_layers.size()); }
 
-    Piece* piece(const coord3d_t& coord) const;
+    Piece* piece(const PieceCoord3d& coord) const;
     void remove(const Piece* piece);
   };
 

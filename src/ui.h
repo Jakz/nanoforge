@@ -22,6 +22,8 @@ protected:
   
 public:
   UI(Context* context);
+
+  void drawMainMenu();
   
   void drawPaletteWindow();
   void drawStudModeWindow();

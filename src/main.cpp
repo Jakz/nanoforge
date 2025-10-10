@@ -155,7 +155,14 @@ void Loader::save(const nb::Model* model, const std::filesystem::path& filename)
     for (const auto& piece : layer->pieces())
     {
       fkyaml::node node = {
-        { "position", fkyaml::node::sequence({ layer->index(), piece.coord().x, piece.coord().y}) },
+        { 
+          "position",
+          fkyaml::node::sequence({
+            layer->index(),
+            piece.coord().tx(),
+            piece.coord().ty()
+          }) 
+        },
         { "size", fkyaml::node::sequence({ piece.width(), piece.height() }) },
         { "color", piece.color()->ident }
       };
@@ -213,6 +220,7 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
       int z = p["position"][0].as_int();
       int x = p["position"][1].as_int();
       int y = p["position"][2].as_int();
+
       const nb::PieceColor* color = _context->data->colors.white;
       nb::PieceType type = nb::PieceType::Square;
       nb::StudMode studs = nb::StudMode::Full;
@@ -248,7 +256,7 @@ std::optional<nb::Model> Loader::load(const std::filesystem::path& file)
           studs = nb::StudMode::Full;
       }
 
-      model.addPiece(z, nb::Piece(coord2d_t(x, y), color, nb::PieceOrientation::North, type, size, studs));
+      model.addPiece(z, nb::Piece(nb::PieceCoord(x, y, true), color, nb::PieceOrientation::North, type, size, studs));
     }
 
     auto bounds = model.bounds();
@@ -303,7 +311,7 @@ int main(int arg, char* argv[])
 
   SetTargetFPS(60);
 
-  while (!WindowShouldClose())
+  while (!WindowShouldClose() && !context.shouldExit)
   {
     BeginDrawing();
     ClearBackground(RAYWHITE);
@@ -342,7 +350,7 @@ int main(int arg, char* argv[])
     if (input->hover())
     {
       /* draw string with coordinate in bottom left corner */
-      std::string coordStr = TextFormat("Hover: %d - (%d, %d)", input->hover()->z, input->hover()->x, input->hover()->y);
+      std::string coordStr = TextFormat("Hover: %d - (%2.2f, %2.2f)", input->hover()->z, input->hover()->x(), input->hover()->y());
       DrawText(coordStr.c_str(), 10, GetScreenHeight() - 30, 14, DARKGRAY);
     }
 

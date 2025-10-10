@@ -2,35 +2,35 @@
 
 using namespace nb;
 
-Piece* nb::Layer::piece(const coord2d_t& coord) const
+Piece* nb::Layer::piece(const nb::PieceCoord& coord) const
 {
   for (const auto& p : _pieces)
   {
-    if (coord.x >= p.x() && coord.x < p.x() + p.width() &&  
-       coord.y >= p.y() && coord.y < p.y() + p.height())
+    if (coord.fx() >= p.fx() && coord.fx() < p.fx() + p.width() &&
+       coord.fy() >= p.fy() && coord.fy() < p.fy() + p.height())
       return const_cast<Piece*>(&p);
   }
   return nullptr;
 }
 
-bounds2d_t nb::Layer::bounds() const
+PieceBounds nb::Layer::bounds() const
 {
   /* iterate all pieces and update bounds */
-  bounds2d_t b;
+  PieceBounds b;
 
   for (const auto& p : _pieces)
   {
     b += p.coord();
-    b += coord2d_t(p.x() + p.width() - 1, p.y() + p.height() - 1);
+    b += p.coord() + p.size();
   }
   
   return b;
 }
 
 
-bounds2d_t nb::Model::bounds() const
+PieceBounds nb::Model::bounds() const
 {
-  bounds2d_t b;
+  PieceBounds b;
 
   for (const auto& layer : _layers)
      b += layer->bounds();
@@ -90,12 +90,12 @@ void nb::Model::addPiece(layer_index_t layerIndex, const Piece& piece)
     layer->add(piece);
 }
 
-Piece* nb::Model::piece(const coord3d_t& coord) const
+Piece* nb::Model::piece(const PieceCoord3d& coord) const
 {
   const Layer* layer = this->layer(coord.z);
 
   if (layer)
-    return layer->piece(coord.xy());
+    return layer->piece(coord.coord);
 
   return nullptr;
 }
@@ -141,7 +141,7 @@ void nb::Model::shift(Direction direction)
 
 void nb::Model::shrinkToFit()
 {
-  bounds2d_t b = this->bounds();
+  PieceBounds b = this->bounds();
   this->shift(- b.min());
 }
 

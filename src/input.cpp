@@ -49,8 +49,35 @@ void InputHandler::handle(nb::Model* model)
     if (bounds.CheckCollision(position))
     {
       auto relative = position - bounds.Origin();
-      coord2d_t cell = coord2d_t(relative.x / Data::Constants::LAYER2D_CELL_SIZE.width, relative.y / Data::Constants::LAYER2D_CELL_SIZE.height);
-      _hover = coord3d_t(cell, _context->renderer->_topDown.begin().index() - i);
+
+      /* if snap mode is free we should adjust position to center it around piece according to piece size */
+      if (_context->prefs.ui.grid.halfSteps == GridSnapMode::Free || _context->prefs.ui.grid.centerPieceInHover)
+      {
+        relative.x -= (Data::Constants::LAYER2D_CELL_SIZE.width * (_context->brush->width())) / 2;
+        relative.y -= (Data::Constants::LAYER2D_CELL_SIZE.height * (_context->brush->height())) / 2;
+      }
+
+      /* this value is in half steps */
+      vec2 cell = vec2(relative.x / Data::Constants::LAYER2D_CELL_SIZE.width, relative.y / Data::Constants::LAYER2D_CELL_SIZE.height);
+
+      /* we need to convert half steps grid into a nb::PieceCoord according to the snap mode */
+      if (_context->prefs.ui.grid.halfSteps == GridSnapMode::Whole)
+      {
+        /* we drop fractional part and align to whole block */
+        cell.x = std::floor(cell.x);
+        cell.y = std::floor(cell.y);
+      }
+      else if (_context->prefs.ui.grid.halfSteps == GridSnapMode::Half)
+      {
+        /* all values < 0.5 are floored, otherwise ceiled */
+        cell.x = (cell.x - std::floor(cell.x) < 0.5f) ? std::floor(cell.x) : (std::floor(cell.x) + 0.5f);
+        cell.y = (cell.y - std::floor(cell.y) < 0.5f) ? std::floor(cell.y) : (std::floor(cell.y) + 0.5f);
+      }
+      else
+        ;
+
+      _hover = nb::PieceCoord3d(_context->renderer->_topDown.begin().index() - i, nb::PieceCoord(cell.x, cell.y));
+
       any = true;
       break;
     }
@@ -96,7 +123,7 @@ void InputHandler::mouseDown(MouseButton button)
     else
     {
       nb::Piece piece = *_context->brush.get();
-      piece.moveAt(_hover->xy());
+      piece.moveAt(_hover->coord);
       model->addPiece(_hover->z, piece);
     }
   }

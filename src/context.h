@@ -13,6 +13,8 @@ class UI;
 class InputHandler;
 class Loader;
 
+enum class GridSnapMode { Whole, Half, Free };
+
 struct Preferences
 {
   struct
@@ -29,14 +31,14 @@ struct Preferences
     struct
     {
       vec2 marginFromTop = vec2(10.0f, 10.0f);
-
-
+      GridSnapMode halfSteps = GridSnapMode::Half;
+      bool centerPieceInHover = false;
     } grid;
   } ui;
 
   struct
   {
-    bool drawEdges = true;
+    bool drawEdges = false;
     bool drawStuds = true;
 
   } renderer;
@@ -52,7 +54,7 @@ struct Preferences
 #endif
     
   }
-  vec2 gridTopPosition() const { return ui.grid.marginFromTop + vec2(0, ui.toolbar.height); }
+  vec2 gridTopPosition() const { return ui.grid.marginFromTop + vec2(0, ui.toolbar.height + 16.0f); }
 };
 
 struct Context
@@ -66,6 +68,8 @@ struct Context
   std::unique_ptr<UI> ui;
   std::unique_ptr<Data> data;
   std::unique_ptr<Loader> loader;
+
+  bool shouldExit = false;
 
   Context();
 };
