@@ -278,7 +278,7 @@ void UI::drawMainMenu()
       if (ImGui::MenuItem("New", "Ctrl+N")) { /* ... */ }
       if (ImGui::MenuItem("Open...", "Ctrl+O")) { /* ... */ }
       ImGui::Separator();
-      bool autosave = true;
+      static bool autosave = true;
       if (ImGui::MenuItem("Autosave", nullptr, &autosave)) { /* toggle */ }
       ImGui::Separator();
 
@@ -290,7 +290,23 @@ void UI::drawMainMenu()
     if (ImGui::BeginMenu("Edit"))
     {
       if (ImGui::MenuItem("Undo", "Ctrl+Z", false, /*enabled=*/true)) { /* ... */ }
+      
+      if (ImGui::BeginMenu("Grid Snap Mode"))
+      {
+        auto current = _context->prefs.ui.grid.halfSteps;
+        if (ImGui::MenuItem("Free", nullptr, current == GridSnapMode::Free))
+          _context->prefs.ui.grid.halfSteps = GridSnapMode::Free;
+        if (ImGui::MenuItem("Half", nullptr, current == GridSnapMode::Half))
+          _context->prefs.ui.grid.halfSteps = GridSnapMode::Half;
+        if (ImGui::MenuItem("Whole", nullptr, current == GridSnapMode::Whole))
+          _context->prefs.ui.grid.halfSteps = GridSnapMode::Whole;
+
+        ImGui::EndMenu();
+      }
+      
       ImGui::EndMenu();
+
+      
     }
     ImGui::EndMainMenuBar();
   }
