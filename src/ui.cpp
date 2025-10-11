@@ -7,6 +7,7 @@
 #include "rlImGui.h"
 
 #include "model/piece.h"
+#include "model/model.h"
 
 #include <optional>
 
@@ -301,6 +302,17 @@ void UI::drawMainMenu()
         if (ImGui::MenuItem("Whole", nullptr, current == GridSnapMode::Whole))
           _context->prefs.ui.grid.halfSteps = GridSnapMode::Whole;
 
+        ImGui::EndMenu();
+      }
+
+      if (ImGui::BeginMenu("Grow"))
+      {
+        if (ImGui::MenuItem("West <")) { _context->model->grow(Direction::West); }
+        if (ImGui::MenuItem("East >")) { _context->model->grow(Direction::East); }
+        if (ImGui::MenuItem("North ^")) { _context->model->grow(Direction::North); }
+        if (ImGui::MenuItem("South v")) { _context->model->grow(Direction::South); }
+        if (ImGui::MenuItem("Shrink to fit")) { _context->model->shrinkToFit(); }
+        
         ImGui::EndMenu();
       }
       

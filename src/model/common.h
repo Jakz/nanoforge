@@ -48,6 +48,7 @@ struct size2d_t
   Vector2 operator*(float v) const { return Vector2(width * v, height * v); }
   
   size2d_t operator+(const size2d_t& size) const { return size2d_t(width + size.width, height + size.height); }
+  size2d_t operator-(const size2d_t& size) const { return size2d_t(width - size.width, height - size.height); }
 };
 
 struct bounds2d_t
@@ -60,6 +61,8 @@ public:
   bounds2d_t() : _min(std::numeric_limits<coord_t>::max(), std::numeric_limits<coord_t>::max()),
     _max(std::numeric_limits<coord_t>::min(), std::numeric_limits<coord_t>::min())
   { };
+
+  bounds2d_t(const coord2d_t& min, const coord2d_t& max) : _min(min), _max(max) { }
 
   bounds2d_t& operator+=(const coord2d_t& c)
   {

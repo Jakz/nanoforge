@@ -111,6 +111,20 @@ namespace nb
       normalize();
       return *this;
     }
+    
+    coord2d_t floor() const
+    {
+      coord2d_t w = whole;
+      return w;
+    }
+
+    coord2d_t ceil() const
+    {
+      coord2d_t w = whole;
+      if (fraction.x > 0) ++w.x;
+      if (fraction.y > 0) ++w.y;
+      return w;
+    }
   };
 
 
@@ -194,8 +208,16 @@ namespace nb
     PieceBounds& operator+=(const PieceCoord& coord) { _bounds += coord.ticks(); return *this; }
     PieceBounds& operator+=(const PieceBounds& other) { _bounds += other._bounds; return *this; }
 
-    size2d_t size() const { return size2d_t(_bounds.size().width / PieceCoord::DENOMINATOR, _bounds.size().height / PieceCoord::DENOMINATOR); }
-    coord2d_t min() const { return coord2d_t(_bounds.min().x / PieceCoord::DENOMINATOR, _bounds.min().y / PieceCoord::DENOMINATOR); }
+    size2d_t size() const
+    {
+      auto size = size2d_t(_bounds.size().width / PieceCoord::DENOMINATOR, _bounds.size().height / PieceCoord::DENOMINATOR);
+      if (_bounds.size().width % PieceCoord::DENOMINATOR) ++size.width;
+      if (_bounds.size().height % PieceCoord::DENOMINATOR) ++size.height;
+      return size;
+    }
+
+    PieceCoord min() const { return PieceCoord(_bounds.min().x, _bounds.min().y, true); }
+    PieceCoord max() const { return PieceCoord(_bounds.max().x, _bounds.max().y, true); }
 
     const bounds2d_t& bounds() const { return _bounds; }
   };

@@ -139,14 +139,48 @@ void nb::Model::shift(Direction direction)
   }
 }
 
+void nb::Model::grow(Direction direction, coord_t amount)
+{
+  switch (direction)
+  {
+    case Direction::North:
+      shift(coord2d_t(0, amount));
+      _info.size.height += amount;
+      break;
+
+    case Direction::East:
+      _info.size.width += amount;
+      break;
+
+    case Direction::South:
+      _info.size.height += amount;
+      break;
+
+    case Direction::West:
+      shift(coord2d_t(amount, 0));
+      _info.size.width += amount;
+      break;
+  }
+}
+
 void nb::Model::shrinkToFit()
 {
   PieceBounds b = this->bounds();
-  this->shift(- b.min());
+  
+  /* shift model to the origin */
+  PieceCoord pmin = b.min();
+  coord2d_t min = pmin.whole;
+  this->shift(-min);
+
+  /* resize to discard excessive */
+  PieceCoord pmax = b.max();
+  bounds2d_t bounds = bounds2d_t(pmin.floor(), pmax.ceil());
+
+  _info.size = bounds.size() - size2d_t(1, 1);
+
 }
 
 void nb::Model::setSizeAccordingToBounds()
 {
   shrinkToFit();
-  _info.size = this->bounds().size();
 }
