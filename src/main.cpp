@@ -117,6 +117,7 @@ Data::Data(Context* context) : _context(context)
 #include <optional>
 #include <unordered_set>
 
+#include "model/undo.h"
 #include "ui.h"
 
 Context::Context() :
@@ -126,7 +127,8 @@ Context::Context() :
   brush(std::make_unique<nb::Piece>(nb::Piece())),
   ui(std::make_unique<UI>(this)),
   loader(std::make_unique<Loader>(this)),
-  data(std::make_unique<Data>(this))
+  data(std::make_unique<Data>(this)),
+  history(std::make_unique<undo::History>(model.get()))
 {
 
 }

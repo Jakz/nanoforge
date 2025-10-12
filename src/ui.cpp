@@ -8,6 +8,7 @@
 
 #include "model/piece.h"
 #include "model/model.h"
+#include "model/undo.h"
 
 #include <optional>
 
@@ -290,8 +291,15 @@ void UI::drawMainMenu()
     }
     if (ImGui::BeginMenu("Edit"))
     {
-      if (ImGui::MenuItem("Undo", "Ctrl+Z", false, /*enabled=*/true)) { /* ... */ }
-      
+      bool enabled = _context->history->canUndo();
+      if (!enabled)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+      if (ImGui::MenuItem("Undo", "Ctrl+Z", false, enabled))
+        _context->history->undoLast();
+
+      if (!enabled)
+        ImGui::PopStyleColor();
+
       if (ImGui::BeginMenu("Grid Snap Mode"))
       {
         auto current = _context->prefs.ui.grid.halfSteps;
@@ -305,6 +313,11 @@ void UI::drawMainMenu()
         ImGui::EndMenu();
       }
 
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Model"))
+    {
+
       if (ImGui::BeginMenu("Grow"))
       {
         if (ImGui::MenuItem("West <")) { _context->model->grow(Direction::West); }
@@ -315,10 +328,18 @@ void UI::drawMainMenu()
         
         ImGui::EndMenu();
       }
+
+      if (ImGui::BeginMenu("Shift"))
+      {
+        if (ImGui::MenuItem("West <")) { _context->history->execute(new undo::ShiftAction(coord2d_t(-1, 0))); }
+        if (ImGui::MenuItem("East >")) { _context->history->execute(new undo::ShiftAction(coord2d_t(+1, 0))); }
+        if (ImGui::MenuItem("North ^")) { _context->history->execute(new undo::ShiftAction(coord2d_t(0, -1))); }
+        if (ImGui::MenuItem("South v")) { _context->history->execute(new undo::ShiftAction(coord2d_t(0, +1))); }
+
+        ImGui::EndMenu();
+      }
       
       ImGui::EndMenu();
-
-      
     }
     ImGui::EndMainMenuBar();
   }

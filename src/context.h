@@ -62,6 +62,7 @@ struct Context
   Preferences prefs;
 
   std::unique_ptr<nb::Model> model;
+  std::unique_ptr<undo::History> history;
   std::unique_ptr<gfx::Renderer> renderer;
   std::unique_ptr<InputHandler> input;
   std::unique_ptr<nb::Piece> brush;

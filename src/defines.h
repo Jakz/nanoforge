@@ -22,6 +22,11 @@ namespace nb
   class Piece;
 }
 
+namespace undo
+{
+  class History;
+}
+
 #include <map>
 #include "Shader.hpp"
 #include "Material.hpp"
