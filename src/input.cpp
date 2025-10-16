@@ -83,6 +83,22 @@ void InputHandler::handle(nb::Model* model)
     }
   }
 
+  if (position != _mousePosition)
+  {
+    /* dispatch drag event changed if mouse button is down */
+    for (size_t i = 0; i < _mouseState.size(); ++i)
+    {
+      if (_mouseState[i])
+      {
+        DragStatus nextStatus = (_dragStatus == DragStatus::None) ? DragStatus::Start : DragStatus::Change;
+        mouseDrag(position, nextStatus, static_cast<MouseButton>(i));
+        _dragStatus = nextStatus;
+      }
+    }
+
+    _mousePosition = position;
+  }
+
   if (!any)
     _hover.reset();
 
@@ -95,7 +111,14 @@ void InputHandler::handle(nb::Model* model)
       if (newState[i])
         mouseDown(static_cast<MouseButton>(i));
       else
+      {
         mouseUp(static_cast<MouseButton>(i));
+        if (_dragStatus != DragStatus::None)
+        {
+          mouseDrag(position, DragStatus::End, static_cast<MouseButton>(i));
+          _dragStatus = DragStatus::None;
+        }
+      }
     }
   }
   _mouseState = newState;
@@ -136,6 +159,64 @@ void InputHandler::mouseDown(MouseButton button)
 void InputHandler::mouseUp(MouseButton button)
 {
 
+}
+
+void InputHandler::mouseDrag(const vec2& position, DragStatus status, MouseButton button)
+{
+  /* log on console drag event, use a switch to print status */
+  if (status == DragStatus::Start)
+    printf("Drag started at (%.2f, %.2f) with button %d\n", position.x, position.y, static_cast<int>(button));
+  else if (status == DragStatus::Change)
+  {
+    const float sens = 0.005f;   // sensibilità mouse (radiani per pixel)
+    const float zoomSp = 0.25f;    // velocità zoom
+    const float minR = 0.8f;     // raggio minimo
+    const float maxR = 100.0f;   // raggio massimo
+    const float maxPitch = DEG2RAD * 89.0f; // evita gimbal
+    const float radius = 150.0f;
+    const float maxPitchDeg = 89.0f;
+    const float cosMaxPitch = cosf(DEG2RAD * maxPitchDeg);
+
+
+    auto& cam = _context->renderer->camera();
+
+    Vector3 worldUp = { 0,1,0 };
+    Vector3 off = Vector3Subtract(cam.position, cam.target);
+
+      Vector2 d = GetMouseDelta();
+
+      // Direzione attuale camera -> target (verso il modello)
+      Vector3 dir = Vector3Normalize(Vector3Negate(off)); // from cam to target
+      // Asse destro locale (right)
+      Vector3 right = Vector3Normalize(Vector3CrossProduct(dir, worldUp));
+      // Se dir ~ parallelo a worldUp (ai poli), stabilizza right
+      if (Vector3Length(right) < 1e-5f) right = Vector3( 1,0,0 );
+
+      // Yaw: attorno a worldUp
+      Quaternion qYaw = QuaternionFromAxisAngle(worldUp, -d.x * sens);
+      // Pitch: attorno a right (asse locale)
+      Quaternion qPit = QuaternionFromAxisAngle(right, -d.y * sens);
+
+      // Applica yaw e poi pitch all’offset
+      Quaternion q = QuaternionMultiply(qPit, qYaw);
+      Vector3 offNew = Vector3RotateByQuaternion(off, q);
+
+      // Clamp del pitch: limito l’inclinazione rispetto alla verticale
+      Vector3 dirNew = Vector3Normalize(Vector3Negate(offNew));
+      float c = fabsf(Vector3DotProduct(dirNew, worldUp)); // |cos(theta con up)|
+      if (c > cosMaxPitch) {
+        // Se supera il limite, accetta solo yaw (niente pitch)
+        offNew = Vector3RotateByQuaternion(off, qYaw);
+      }
+
+      off = Vector3Scale(Vector3Normalize(offNew), radius);
+
+    cam.position = Vector3Add(cam.target, off);
+    
+    printf("Drag changed at (%.2f, %.2f) with button %d\n", position.x, position.y, static_cast<int>(button));
+  }
+  else if (status == DragStatus::End)
+    printf("Drag ended at (%.2f, %.2f) with button %d\n", position.x, position.y, static_cast<int>(button));
 }
 
 void InputHandler::keyUp(int key)

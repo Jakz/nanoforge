@@ -302,10 +302,10 @@ int main(int arg, char* argv[])
 
   context.brush.reset(new nb::Piece(coord2d_t(0, 0), context.data->colors.lime, nb::PieceOrientation::North, nb::PieceType::Square, size2d_t(1, 1)));
 
-  renderer->camera().target = { model->size().width * side * 0.5f,  0.0f,  model->size().height * side * 0.5f };
-  renderer->camera().position = { renderer->camera().target.x * 4.0f, renderer->camera().target.x * 2.0f, renderer->camera().target.y * 4.0f };
+  renderer->camera().target = { model->size().width * side * 0.5f,  model->layerCount() * height * 0.5f,  model->size().height * side * 0.5f};
+  renderer->camera().position = { renderer->camera().target.x * 4.0f, renderer->camera().target.y * 2.0f, renderer->camera().target.y *4.0f };
   renderer->camera().up = { 0.0f,  1.0f,  0.0f };
-  renderer->camera().fovy = 45.0f;
+  renderer->camera().fovy = 60.0f;
   renderer->camera().projection = CAMERA_PERSPECTIVE;
 
   rlImGuiSetup(true);
@@ -375,7 +375,7 @@ int main(int arg, char* argv[])
       input->handle(model.get());
 
 
-    UpdateCamera(&renderer->camera(), CAMERA_ORBITAL);
+    //UpdateCamera(&renderer->camera(), CAMERA_ORBITAL);
 
     EndDrawing();
   }
