@@ -72,5 +72,7 @@ struct Context
 
   bool shouldExit = false;
 
+  void loadModel(const std::string& path);
+
   Context();
 };

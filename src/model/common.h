@@ -6,6 +6,8 @@
 
 #include "Vector2.hpp"
 
+#define LOG(msg, ...)   printf("[nanoforge] " msg "\n", ##__VA_ARGS__)
+
 using layer_index_t = int32_t;
 using coord_t = int32_t;
 

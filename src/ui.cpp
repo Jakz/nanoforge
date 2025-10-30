@@ -271,6 +271,8 @@ void UI::drawPieceTypeWindow()
   ImGui::End();
 }
 
+#include "io/tinyfiledialogs/tinyfiledialogs.h"
+
 void UI::drawMainMenu()
 {
   if (ImGui::BeginMainMenuBar())
@@ -278,7 +280,15 @@ void UI::drawMainMenu()
     if (ImGui::BeginMenu("File"))
     {
       if (ImGui::MenuItem("New", "Ctrl+N")) { /* ... */ }
-      if (ImGui::MenuItem("Open...", "Ctrl+O")) { /* ... */ }
+      if (ImGui::MenuItem("Open...", "Ctrl+O")) {
+        char const* extensions[] = { "*.yml" };
+        auto* path =  tinyfd_openFileDialog("Load Model", _context->prefs.basePath.c_str(), 1, extensions, "model files (*.yml)", 0);
+        if (path)
+        {
+          LOG("Loading model from: %s", path);
+          _context->loadModel(path);
+        }
+      }
       ImGui::Separator();
       static bool autosave = true;
       if (ImGui::MenuItem("Autosave", nullptr, &autosave)) { /* toggle */ }
