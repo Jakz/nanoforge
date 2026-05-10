@@ -169,19 +169,15 @@ void InputHandler::mouseDrag(const vec2& position, DragStatus status, MouseButto
   else if (status == DragStatus::Change)
   {
     const float sens = 0.005f;   // sensibilità mouse (radiani per pixel)
-    const float zoomSp = 0.25f;    // velocità zoom
-    const float minR = 0.8f;     // raggio minimo
-    const float maxR = 100.0f;   // raggio massimo
-    const float maxPitch = DEG2RAD * 89.0f; // evita gimbal
-    const float radius = 150.0f;
     const float maxPitchDeg = 89.0f;
-    const float cosMaxPitch = cosf(DEG2RAD * maxPitchDeg);
+    const float maxVerticalAlignment = sinf(DEG2RAD * maxPitchDeg);
 
 
     auto& cam = _context->renderer->camera();
 
     Vector3 worldUp = { 0,1,0 };
     Vector3 off = Vector3Subtract(cam.position, cam.target);
+    const float radius = Vector3Length(off);
 
       Vector2 d = GetMouseDelta();
 
@@ -203,8 +199,8 @@ void InputHandler::mouseDrag(const vec2& position, DragStatus status, MouseButto
 
       // Clamp del pitch: limito l’inclinazione rispetto alla verticale
       Vector3 dirNew = Vector3Normalize(Vector3Negate(offNew));
-      float c = fabsf(Vector3DotProduct(dirNew, worldUp)); // |cos(theta con up)|
-      if (c > cosMaxPitch) {
+      float c = fabsf(Vector3DotProduct(dirNew, worldUp)); // 0 = orizzontale, 1 = verticale
+      if (c > maxVerticalAlignment) {
         // Se supera il limite, accetta solo yaw (niente pitch)
         offNew = Vector3RotateByQuaternion(off, qYaw);
       }
@@ -280,3 +276,4 @@ void InputHandler::keyDown(int key)
   }
 
 }
+
