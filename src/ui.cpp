@@ -9,6 +9,7 @@
 #include "model/piece.h"
 #include "model/model.h"
 #include "model/undo.h"
+#include "renderer.h"
 
 #include <optional>
 
@@ -322,6 +323,13 @@ void UI::drawMainMenu()
 
         ImGui::EndMenu();
       }
+
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("View"))
+    {
+      if (ImGui::MenuItem("Reset Camera", "F"))
+        _context->renderer->resetCamera(_context->model.get());
 
       ImGui::EndMenu();
     }

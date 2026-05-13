@@ -122,6 +122,7 @@ namespace gfx
     static constexpr int EDGE_COMPLEXITY = 6;
 
     void render(const nb::Model* model);
+    void resetCamera(const nb::Model* model);
 
     auto& camera() { return _camera; }
 

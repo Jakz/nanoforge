@@ -4,6 +4,8 @@
 #include "renderer.h"
 #include "context.h"
 
+#include <algorithm>
+
 class Context;
 
 void InputHandler::handleKeystate()
@@ -123,16 +125,89 @@ void InputHandler::handle(nb::Model* model)
   }
   _mouseState = newState;
 
-  /* scroll top down grid */
+  handleMouseWheel(position);
+}
+
+bool InputHandler::isMouseOverTopDownGrid(const vec2& position) const
+{
+  const float layerWidth = model->size().width * Data::Constants::LAYER2D_CELL_SIZE.width;
+  const float layerHeight = model->size().height * Data::Constants::LAYER2D_CELL_SIZE.height;
+  const float shownLayers = static_cast<float>(std::min(_context->renderer->_topDown._shown, model->layerCount()));
+  const float totalHeight = shownLayers * layerHeight + std::max(0.0f, shownLayers - 1.0f) * Data::Constants::LAYER2D_SPACING;
+  const vec2 origin = _context->prefs.gridTopPosition();
+  const rect bounds = rect(origin.x, origin.y, layerWidth, totalHeight);
+
+  return bounds.CheckCollision(position);
+}
+
+void InputHandler::handleMouseWheel(const vec2& position)
+{
   float v = GetMouseWheelMove();
-  if (v && _hover)
+  if (!v)
+    return;
+
+  if (isMouseOverTopDownGrid(position))
   {
     if (v < 0 && _context->renderer->_topDown._offset > 0)
       --_context->renderer->_topDown._offset;
     else if (v > 0 && _context->renderer->_topDown._offset + _context->renderer->_topDown._shown < model->layerCount())
       ++_context->renderer->_topDown._offset;
 
+    return;
   }
+
+  zoomCamera(v);
+}
+
+void InputHandler::panCamera(const vec2& delta)
+{
+  auto& cam = _context->renderer->camera();
+  Vector3 offset = Vector3Subtract(cam.position, cam.target);
+  float radius = Vector3Length(offset);
+
+  Vector3 forward = Vector3Subtract(cam.target, cam.position);
+  forward.y = 0.0f;
+
+  if (Vector3Length(forward) <= 1e-5f)
+    forward = { 0.0f, 0.0f, 1.0f };
+  else
+    forward = Vector3Normalize(forward);
+
+  const Vector3 worldUp = { 0.0f, 1.0f, 0.0f };
+  Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, worldUp));
+  Vector3 movement = Vector3Add(Vector3Scale(right, -delta.x), Vector3Scale(forward, delta.y));
+
+  if (Vector3Length(movement) <= 1e-5f)
+    return;
+
+  const float panScale = std::max(radius, Data::Constants::side * 3.0f) * 0.0015f;
+  movement = Vector3Scale(movement, panScale);
+
+  cam.position = Vector3Add(cam.position, movement);
+  cam.target = Vector3Add(cam.target, movement);
+}
+
+void InputHandler::zoomCamera(float wheelMove)
+{
+  auto& cam = _context->renderer->camera();
+  Vector3 offset = Vector3Subtract(cam.position, cam.target);
+  float radius = Vector3Length(offset);
+
+  if (radius <= 1e-5f)
+    return;
+
+  const float modelWidth = model->size().width * Data::Constants::side;
+  const float modelDepth = model->size().height * Data::Constants::side;
+  const float modelHeight = std::max(1, model->layerCount()) * Data::Constants::height;
+  const float modelExtent = std::max({ modelWidth, modelDepth, modelHeight, Data::Constants::side });
+  const float minRadius = modelExtent * 0.35f;
+  const float maxRadius = modelExtent * 12.0f;
+  const float zoomStep = 0.12f;
+
+  float nextRadius = radius * (1.0f - wheelMove * zoomStep);
+  nextRadius = std::clamp(nextRadius, minRadius, maxRadius);
+
+  cam.position = Vector3Add(cam.target, Vector3Scale(Vector3Normalize(offset), nextRadius));
 }
 
 void InputHandler::mouseDown(MouseButton button)
@@ -150,15 +225,13 @@ void InputHandler::mouseDown(MouseButton button)
       model->addPiece(_hover->z, piece);
     }
   }
-  else if (button == MouseButton::Right)
-  {
-    _context->brush->swapSize();
-  }
+
 }
 
 void InputHandler::mouseUp(MouseButton button)
 {
-
+  if (button == MouseButton::Right && _dragStatus == DragStatus::None)
+    _context->brush->swapSize();
 }
 
 void InputHandler::mouseDrag(const vec2& position, DragStatus status, MouseButton button)
@@ -168,6 +241,17 @@ void InputHandler::mouseDrag(const vec2& position, DragStatus status, MouseButto
     printf("Drag started at (%.2f, %.2f) with button %d\n", position.x, position.y, static_cast<int>(button));
   else if (status == DragStatus::Change)
   {
+    Vector2 d = GetMouseDelta();
+
+    if (button == MouseButton::Right)
+    {
+      panCamera(d);
+      return;
+    }
+
+    if (button != MouseButton::Left)
+      return;
+
     const float sens = 0.005f;   // sensibilità mouse (radiani per pixel)
     const float maxPitchDeg = 89.0f;
     const float maxVerticalAlignment = sinf(DEG2RAD * maxPitchDeg);
@@ -179,37 +263,35 @@ void InputHandler::mouseDrag(const vec2& position, DragStatus status, MouseButto
     Vector3 off = Vector3Subtract(cam.position, cam.target);
     const float radius = Vector3Length(off);
 
-      Vector2 d = GetMouseDelta();
+    // Direzione attuale camera -> target (verso il modello)
+    Vector3 dir = Vector3Normalize(Vector3Negate(off)); // from cam to target
+    // Asse destro locale (right)
+    Vector3 right = Vector3Normalize(Vector3CrossProduct(dir, worldUp));
+    // Se dir ~ parallelo a worldUp (ai poli), stabilizza right
+    if (Vector3Length(right) < 1e-5f) right = Vector3( 1,0,0 );
 
-      // Direzione attuale camera -> target (verso il modello)
-      Vector3 dir = Vector3Normalize(Vector3Negate(off)); // from cam to target
-      // Asse destro locale (right)
-      Vector3 right = Vector3Normalize(Vector3CrossProduct(dir, worldUp));
-      // Se dir ~ parallelo a worldUp (ai poli), stabilizza right
-      if (Vector3Length(right) < 1e-5f) right = Vector3( 1,0,0 );
+    // Yaw: attorno a worldUp
+    Quaternion qYaw = QuaternionFromAxisAngle(worldUp, -d.x * sens);
+    // Pitch: attorno a right (asse locale)
+    Quaternion qPit = QuaternionFromAxisAngle(right, -d.y * sens);
 
-      // Yaw: attorno a worldUp
-      Quaternion qYaw = QuaternionFromAxisAngle(worldUp, -d.x * sens);
-      // Pitch: attorno a right (asse locale)
-      Quaternion qPit = QuaternionFromAxisAngle(right, -d.y * sens);
+    // Applica yaw e poi pitch all’offset
+    Quaternion q = QuaternionMultiply(qPit, qYaw);
+    Vector3 offNew = Vector3RotateByQuaternion(off, q);
 
-      // Applica yaw e poi pitch all’offset
-      Quaternion q = QuaternionMultiply(qPit, qYaw);
-      Vector3 offNew = Vector3RotateByQuaternion(off, q);
+    // Clamp del pitch: limito l’inclinazione rispetto alla verticale
+    Vector3 dirNew = Vector3Normalize(Vector3Negate(offNew));
+    float c = fabsf(Vector3DotProduct(dirNew, worldUp)); // 0 = orizzontale, 1 = verticale
+    if (c > maxVerticalAlignment) {
+      // Se supera il limite, accetta solo yaw (niente pitch)
+      offNew = Vector3RotateByQuaternion(off, qYaw);
+    }
 
-      // Clamp del pitch: limito l’inclinazione rispetto alla verticale
-      Vector3 dirNew = Vector3Normalize(Vector3Negate(offNew));
-      float c = fabsf(Vector3DotProduct(dirNew, worldUp)); // 0 = orizzontale, 1 = verticale
-      if (c > maxVerticalAlignment) {
-        // Se supera il limite, accetta solo yaw (niente pitch)
-        offNew = Vector3RotateByQuaternion(off, qYaw);
-      }
-
-      off = Vector3Scale(Vector3Normalize(offNew), radius);
+    off = Vector3Scale(Vector3Normalize(offNew), radius);
 
     cam.position = Vector3Add(cam.target, off);
     
-    printf("Drag changed at (%.2f, %.2f) with button %d\n", position.x, position.y, static_cast<int>(button));
+    //printf("Drag changed at (%.2f, %.2f) with button %d\n", position.x, position.y, static_cast<int>(button));
   }
   else if (status == DragStatus::End)
     printf("Drag ended at (%.2f, %.2f) with button %d\n", position.x, position.y, static_cast<int>(button));
@@ -245,6 +327,10 @@ void InputHandler::keyDown(int key)
   {
     _context->model->addLayerOnTop();
   }
+  else if (key == KEY_F)
+  {
+    _context->renderer->resetCamera(model);
+  }
   else if (key == KEY_C)
   {
     _context->model->clear();
@@ -276,4 +362,3 @@ void InputHandler::keyDown(int key)
   }
 
 }
-

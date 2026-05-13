@@ -406,6 +406,23 @@ gfx::MyMesh gfx::Renderer::generateHalfCylinder()
 
 gfx::Renderer::Renderer(Context* context) : _context(context), _topDown(context) { }
 
+void gfx::Renderer::resetCamera(const nb::Model* model)
+{
+  _camera.target = {
+    model->size().width * side * 0.5f,
+    model->layerCount() * height * 0.5f,
+    model->size().height * side * 0.5f
+  };
+  _camera.position = {
+    _camera.target.x * 4.0f,
+    _camera.target.y * 2.0f,
+    _camera.target.y * 4.0f
+  };
+  _camera.up = { 0.0f, 1.0f, 0.0f };
+  _camera.fovy = 60.0f;
+  _camera.projection = CAMERA_PERSPECTIVE;
+}
+
 void gfx::Renderer::init()
 {  
   auto vsi = glCreateShader(GL_VERTEX_SHADER);

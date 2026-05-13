@@ -27,6 +27,10 @@ class InputHandler
   nb::Model* model;
 
   void handleKeystate();
+  bool isMouseOverTopDownGrid(const vec2& position) const;
+  void handleMouseWheel(const vec2& position);
+  void panCamera(const vec2& delta);
+  void zoomCamera(float wheelMove);
 
 public:
   InputHandler(Context* context) : _context(context), _mouseState({ false, false, false }), _dragStatus(DragStatus::None) { }
