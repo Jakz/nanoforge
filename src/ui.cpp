@@ -10,8 +10,12 @@
 #include "model/model.h"
 #include "model/undo.h"
 #include "renderer.h"
+#include "instructions.h"
 
+#include <algorithm>
+#include <cstring>
 #include <optional>
+#include <vector>
 
 static inline ImVec4 ToImVec4(Color c)
 {
@@ -184,9 +188,18 @@ bool UI::drawToolbarIcon(const char* ident, coord2d_t icon, const char* caption)
 }
 
 
-UI::UI(Context* context) : _context(context), _paletteWindowVisible(true), _studWindowVisible(true)
+UI::UI(Context* context) :
+  _context(context),
+  _paletteWindowVisible(true),
+  _studWindowVisible(true),
+  _instructionExportWindowVisible(false),
+  _instructionPiecesPerStep(8),
+  _instructionGroupingMode(0),
+  _instructionImageMode(0)
 {
   _icons = LoadTexture((_context->prefs.basePath + "/icons.png").c_str());
+  std::strncpy(_instructionImagePrefix, "step", sizeof(_instructionImagePrefix));
+  _instructionImagePrefix[sizeof(_instructionImagePrefix) - 1] = '\0';
 }
 
 void UI::drawToolbar()
@@ -274,6 +287,161 @@ void UI::drawPieceTypeWindow()
 
 #include "io/tinyfiledialogs/tinyfiledialogs.h"
 
+namespace
+{
+  const char* pieceTypeLabel(nb::PieceType type)
+  {
+    return type == nb::PieceType::Round ? "round" : "square";
+  }
+
+  const char* studsLabel(nb::StudMode studs)
+  {
+    switch (studs)
+    {
+      case nb::StudMode::None: return "no studs";
+      case nb::StudMode::Centered: return "center stud";
+      case nb::StudMode::Full: return "full studs";
+    }
+
+    return "full studs";
+  }
+
+  void drawPiecePreview(const instructions::PieceSummary& summary, const ImVec2& size)
+  {
+    ImGui::InvisibleButton("piece-preview", size);
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImVec2 p0 = ImGui::GetItemRectMin();
+    ImVec2 p1 = ImGui::GetItemRectMax();
+    ImVec2 center((p0.x + p1.x) * 0.5f, (p0.y + p1.y) * 0.5f);
+
+    float maxDim = static_cast<float>(std::max(summary.size.width, summary.size.height));
+    float scale = maxDim > 0.0f ? (std::min(size.x, size.y) - 8.0f) / maxDim : 1.0f;
+    ImVec2 blockSize(summary.size.width * scale, summary.size.height * scale);
+    ImVec2 b0(center.x - blockSize.x * 0.5f, center.y - blockSize.y * 0.5f);
+    ImVec2 b1(center.x + blockSize.x * 0.5f, center.y + blockSize.y * 0.5f);
+
+    ImU32 top = ImGui::GetColorU32(ToImVec4(summary.color->top()));
+    ImU32 edge = ImGui::GetColorU32(ToImVec4(summary.color->edge()));
+
+    if (summary.type == nb::PieceType::Round && summary.size.width == 1 && summary.size.height == 1)
+    {
+      dl->AddCircleFilled(center, blockSize.x * 0.5f, top, 24);
+      dl->AddCircle(center, blockSize.x * 0.5f, edge, 24, 2.0f);
+    }
+    else
+    {
+      dl->AddRectFilled(b0, b1, top, summary.type == nb::PieceType::Round ? blockSize.y * 0.5f : 3.0f);
+      dl->AddRect(b0, b1, edge, summary.type == nb::PieceType::Round ? blockSize.y * 0.5f : 3.0f, 0, 2.0f);
+    }
+
+    if (summary.studs != nb::StudMode::None)
+    {
+      const int studsX = summary.studs == nb::StudMode::Centered ? 1 : summary.size.width;
+      const int studsY = summary.studs == nb::StudMode::Centered ? 1 : summary.size.height;
+      const float radius = std::max(2.0f, scale * 0.14f);
+
+      for (int y = 0; y < studsY; ++y)
+      {
+        for (int x = 0; x < studsX; ++x)
+        {
+          float sx = summary.studs == nb::StudMode::Centered ? center.x : b0.x + (x + 0.5f) * scale;
+          float sy = summary.studs == nb::StudMode::Centered ? center.y : b0.y + (y + 0.5f) * scale;
+          dl->AddCircleFilled(ImVec2(sx, sy), radius, top, 12);
+          dl->AddCircle(ImVec2(sx, sy), radius, edge, 12, 1.0f);
+        }
+      }
+    }
+  }
+}
+
+void UI::drawInstructionExportWindow()
+{
+  if (!_instructionExportWindowVisible)
+    return;
+
+  ImGui::SetNextWindowSize(ImVec2(520, 620), ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("Export Instructions", &_instructionExportWindowVisible))
+  {
+    static const int pieceStepOptions[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50 };
+
+    ImGui::Text("Grouping");
+    ImGui::RadioButton("Pieces per step", &_instructionGroupingMode, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("By layer", &_instructionGroupingMode, 1);
+
+    if (_instructionGroupingMode == 0)
+    {
+      if (ImGui::BeginCombo("Pieces", TextFormat("%d", _instructionPiecesPerStep)))
+      {
+        for (int value : pieceStepOptions)
+        {
+          bool selected = _instructionPiecesPerStep == value;
+          if (ImGui::Selectable(TextFormat("%d", value), selected))
+            _instructionPiecesPerStep = value;
+          if (selected)
+            ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+      }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Output");
+    ImGui::RadioButton("Separate images", &_instructionImageMode, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Single image", &_instructionImageMode, 1);
+    ImGui::InputText("Image prefix", _instructionImagePrefix, sizeof(_instructionImagePrefix));
+
+    ImGui::Separator();
+    std::vector<instructions::PieceSummary> summary = instructions::summarizeCurrentModel(_context);
+    int totalPieces = 0;
+    for (const auto& piece : summary)
+      totalPieces += piece.count;
+
+    ImGui::Text("Required pieces: %d", totalPieces);
+    ImGui::BeginChild("RequiredPieces", ImVec2(0, 330), true);
+    for (const auto& piece : summary)
+    {
+      ImGui::PushID(&piece);
+      drawPiecePreview(piece, ImVec2(56, 40));
+      ImGui::SameLine();
+      ImGui::Text("x%d  %dx%d  %s  %s  %s",
+        piece.count,
+        piece.size.width,
+        piece.size.height,
+        piece.color->ident.c_str(),
+        pieceTypeLabel(piece.type),
+        studsLabel(piece.studs));
+      ImGui::PopID();
+    }
+    ImGui::EndChild();
+
+    ImGui::Separator();
+    if (ImGui::Button("Choose Folder and Export"))
+    {
+      auto* path = tinyfd_selectFolderDialog("Export Instructions", _context->prefs.basePath.c_str());
+      if (path)
+      {
+        instructions::ExportOptions options;
+        options.groupingMode = _instructionGroupingMode == 1 ? instructions::GroupingMode::ByLayer : instructions::GroupingMode::PiecesPerStep;
+        options.imageMode = _instructionImageMode == 1 ? instructions::ImageMode::SingleSheet : instructions::ImageMode::SeparateImages;
+        options.piecesPerStep = _instructionPiecesPerStep;
+        options.imagePrefix = _instructionImagePrefix;
+
+        LOG("Exporting instructions to: %s", path);
+        if (instructions::exportCurrentModel(_context, path, options))
+          _instructionExportWindowVisible = false;
+      }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel"))
+      _instructionExportWindowVisible = false;
+  }
+
+  ImGui::End();
+}
+
 void UI::drawMainMenu()
 {
   if (ImGui::BeginMainMenuBar())
@@ -293,6 +461,10 @@ void UI::drawMainMenu()
       ImGui::Separator();
       static bool autosave = true;
       if (ImGui::MenuItem("Autosave", nullptr, &autosave)) { /* toggle */ }
+      ImGui::Separator();
+
+      if (ImGui::MenuItem("Export Instructions..."))
+        _instructionExportWindowVisible = true;
       ImGui::Separator();
 
       if (ImGui::MenuItem("Exit"))
@@ -374,4 +546,5 @@ void UI::draw()
     drawStudModeWindow();
 
   drawViewOptionsWindow();
+  drawInstructionExportWindow();
 }

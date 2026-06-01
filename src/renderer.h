@@ -9,6 +9,8 @@
 #include "model/model.h"
 #include "defines.h"
 
+#include <filesystem>
+
 typedef struct par_shapes_mesh_s par_shapes_mesh;
 
 namespace gfx
@@ -122,6 +124,7 @@ namespace gfx
     static constexpr int EDGE_COMPLEXITY = 6;
 
     void render(const nb::Model* model);
+    bool exportPng(const nb::Model* model, const std::filesystem::path& filename, int width = 1200, int height = 900);
     void resetCamera(const nb::Model* model);
 
     auto& camera() { return _camera; }

@@ -19,6 +19,11 @@ protected:
 protected:
   bool _paletteWindowVisible;
   bool _studWindowVisible;
+  bool _instructionExportWindowVisible;
+  int _instructionPiecesPerStep;
+  int _instructionGroupingMode;
+  int _instructionImageMode;
+  char _instructionImagePrefix[64];
   
 public:
   UI(Context* context);
@@ -29,6 +34,7 @@ public:
   void drawStudModeWindow();
   void drawViewOptionsWindow();
   void drawPieceTypeWindow();
+  void drawInstructionExportWindow();
   void drawToolbar();
 
   void draw();

@@ -6,6 +6,7 @@
 #include "glad/glad.h"
 
 #include <cassert>
+#include <filesystem>
 
 
 nb::layer_iterator_t gfx::TopDownGrid::begin() const
@@ -575,6 +576,47 @@ void gfx::Renderer::render(const nb::Model* model)
   }
 
   renderStuds();
+}
+
+bool gfx::Renderer::exportPng(const nb::Model* model, const std::filesystem::path& filename, int width, int height)
+{
+  if (!model || width <= 0 || height <= 0)
+    return false;
+
+  if (filename.has_parent_path())
+    std::filesystem::create_directories(filename.parent_path());
+
+  auto oldCamera = _camera;
+  bool oldDrawEdges = _context->prefs.renderer.drawEdges;
+  bool oldDrawStuds = _context->prefs.renderer.drawStuds;
+
+  resetCamera(model);
+  _context->prefs.renderer.drawEdges = true;
+  _context->prefs.renderer.drawStuds = true;
+
+  RenderTexture2D target = LoadRenderTexture(width, height);
+
+  BeginTextureMode(target);
+  ClearBackground(RAYWHITE);
+  BeginMode3D(_camera);
+  _studBatch.instanceData().clear();
+  renderModel(model);
+  renderStuds();
+  EndMode3D();
+  EndTextureMode();
+
+  Image image = LoadImageFromTexture(target.texture);
+  ImageFlipVertical(&image);
+  bool ok = ExportImage(image, filename.string().c_str());
+
+  UnloadImage(image);
+  UnloadRenderTexture(target);
+
+  _context->prefs.renderer.drawEdges = oldDrawEdges;
+  _context->prefs.renderer.drawStuds = oldDrawStuds;
+  _camera = oldCamera;
+
+  return ok;
 }
 
 void gfx::Renderer::renderLayerGrid3d(layer_index_t index, size2d_t size)

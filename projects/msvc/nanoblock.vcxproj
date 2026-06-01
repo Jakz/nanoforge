@@ -18,6 +18,7 @@
     <ClCompile Include="..\..\..\libs\imgui\imgui_widgets.cpp" />
     <ClCompile Include="..\..\..\libs\rlImGui\rlImGui.cpp" />
     <ClCompile Include="..\..\src\input.cpp" />
+    <ClCompile Include="..\..\src\instructions.cpp" />
     <ClCompile Include="..\..\src\io\loader.cpp" />
     <ClCompile Include="..\..\src\io\tinyfiledialogs\tinyfiledialogs.c" />
     <ClCompile Include="..\..\src\main.cpp" />
@@ -34,6 +35,7 @@
     <ClInclude Include="..\..\src\glad\newer\glad.h" />
     <ClInclude Include="..\..\src\glad\newer\khrplatform.h" />
     <ClInclude Include="..\..\src\input.h" />
+    <ClInclude Include="..\..\src\instructions.h" />
     <ClInclude Include="..\..\src\io\loader.h" />
     <ClInclude Include="..\..\src\io\tinyfiledialogs\tinyfiledialogs.h" />
     <ClInclude Include="..\..\src\model\common.h" />
